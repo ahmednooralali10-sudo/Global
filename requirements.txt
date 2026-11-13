@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+requests
+protobuf-decoder
+pycryptodome
+google-play-scraper
+urllib3
+pyjwt
+rich
+cfonts
