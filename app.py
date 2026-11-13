@@ -12,19 +12,30 @@ from cfonts import render, say
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 
+# --- مكتبات الويب ---
+from fastapi import FastAPI
+import uvicorn
+
 import keys
 from xAlInAs import *
 
+# ==================== التعديلات الجديدة ====================
+TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
+TG_CHAT_ID = "8930921922"
+
+INSTAGRAM = "37_rl"
+TELEGRAM = "xxmahdipy"
+OWNER_NAME = "XxMAHDI.py"
+ADMIN_UID = "11877711994"
+
 ACCOUNTS_FILE = "accounts.txt"
 TCPOB_FILE = "xAlInAs.json"
-TG = "@xAlInAs_sAnIlAx"
 RCD = 1
 RDT = .1
 RES = 20000
 OBV = "ob55"
 RF = False
 RAF = {"ME": ACCOUNTS_FILE}
-ADMIN_UID = "7909163333"
 
 xAlInAs_enc  = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
 xAlInAs_enc1 = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
@@ -79,10 +90,6 @@ PACKET_RESEND = 50
 AUTH_RETRY_DELAY = 3.0
 BOT_CRASH_RESTART_DELAY = 2.0
 
-INSTAGRAM = "@xAlInAs_sAnIlAx"
-TELEGRAM = "@xAlInAs_sAnIlAx"
-OWNER_NAME = "xAlInAs"
-
 HR = {
     "User-Agent": "UnityPlayer/2018.4.12f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)",
     "Accept": "*/*",
@@ -105,6 +112,58 @@ COLORS = [
     "2E8B57", "3CB371", "6B8E23", "808000", "B8860B", "CD5C5C", "8B0000",
 ]
 
+# ==================== دوال البوت الجديدة ====================
+def send_tg_notify(text):
+    if not TG_BOT_TOKEN: return
+    url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
+    try:
+        requests.post(url, json={"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "Markdown"}, timeout=5)
+    except:
+        pass
+
+def tg_polling():
+    if not TG_BOT_TOKEN: return
+    offset = None
+    while True:
+        try:
+            url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/getUpdates"
+            params = {"timeout": 30, "offset": offset}
+            r = requests.get(url, params=params, timeout=35).json()
+            for update in r.get("result", []):
+                offset = update["update_id"] + 1
+                msg = update.get("message", {})
+                text = msg.get("text", "")
+                chat_id = str(msg.get("chat", {}).get("id", ""))
+                
+                if chat_id != TG_CHAT_ID: continue
+
+                if text == "/start":
+                    global RF
+                    RF = False
+                    send_tg_notify("✅ تم تشغيل البوتات في اللعبة.")
+                elif text == "/stop":
+                    RF = True
+                    send_tg_notify("🛑 تم إيقاف البوتات.")
+                elif text.startswith("/login"):
+                    args = text.split()
+                    if len(args) == 3:
+                        send_tg_notify(f"⏳ جاري فحص الحساب {args[1]}...")
+                        threading.Thread(target=test_login_tg, args=(args[1], args[2])).start()
+        except Exception as e:
+            pass
+        time.sleep(1)
+
+def test_login_tg(uid, pwd):
+    try:
+        td = GeT_AccEss(uid, pwd)
+        if td and td.get("access_token") and td.get("open_id"):
+            send_tg_notify(f"✅ **ناجح!**\n\nالحساب: `{uid}`\nتم تسجيل الدخول بنجاح!")
+        else:
+            send_tg_notify(f"❌ **فشل!**\n\nالحساب: `{uid}`\nالبيانات خاطئة أو الحساب محظور.")
+    except Exception as e:
+        send_tg_notify(f"❌ **فشل!**\n\nالحساب: `{uid}`\nخطأ: `{str(e)}`")
+
+# ==================== الكود الأصلي ====================
 def ArA_CoLor():
     return random.choice(COLORS)
 
@@ -640,6 +699,11 @@ class xAlInAsClient:
                         pass
                     with lock:
                         console.print(f"[red]{self.uid} {self.region} Auth Failed (attempt {auth_attempts}), retry in {AUTH_RETRY_DELAY}s...[/red]")
+                    
+                    # -- [تعديل] ارسال فشل للبوت --
+                    if auth_attempts == 1: 
+                        send_tg_notify(f"❌ فشل تسجيل الدخول\nالحساب: {self.uid}\nالمنطقة: {self.region}")
+                    
                     time.sleep(AUTH_RETRY_DELAY)
 
                 if not saved_data:
@@ -660,6 +724,9 @@ class xAlInAsClient:
                 with lock:
                     console.print(f"[green]Bot {self.bot_uid} {self.region} LOGGED IN[/green]")
                 self.login_success = True
+                
+                # -- [تعديل] ارسال نجاح للبوت --
+                send_tg_notify(f"✅ نجح تسجيل الدخول\nالبوت: {self.bot_uid}\nالمنطقة: {self.region}")
 
                 try:
                     t = threading.Thread(
@@ -763,6 +830,9 @@ class xAlInAsClient:
                         self.target_found = True
                         with lock:
                             console.print(f"[cyan]{self.bot_uid} JOINED cycle {cycle_num} -> {target_uid}[/cyan]")
+                            
+                        # -- [تعديل] ارسال نجاح الدخول للفريق --
+                        send_tg_notify(f"🎯 ناجح! دخل الفريق\nالبوت: {self.bot_uid}\nالسايكل: {cycle_num}")
 
                         try:
                             sock.close()
@@ -854,7 +924,7 @@ class xAlInAsClient:
                             i = 0
                             msgs = [
                                 f"The game has been hacked by {OWNER_NAME}",
-                                "DoNe By xAlInAs To BuY GL SYSTEM JUST DM",
+                                "DoNe By XxMAHDI.py To BuY GL SYSTEM JUST DM",
                                 f"Instagram : {INSTAGRAM}",
                                 f"Telegram : {TELEGRAM}",
                                 f"FOLLOW ME PR I'WILL BAND YOU {OWNER_NAME}",
@@ -975,6 +1045,9 @@ def xAlInAs_load_all():
 
 def xAlInAs_run_bot(uid, password, region):
     while True:
+        if RF:
+            time.sleep(1)
+            continue
         try:
             xAlInAsClient(uid, password, region).xAlInAs_all()
         except Exception as e:
@@ -998,24 +1071,21 @@ def xAlInAs_restart_loop():
     while True:
         time.sleep(60)
 
-if __name__ == "__main__":
+# ==================== WEB SERVER (للاستضافة) ====================
+app = FastAPI()
+
+@app.get("/")
+def index():
+    return {"status": "alive", "message": "Bot is running"}
+
+@app.on_event("startup")
+def startup_event():
+    # تشغيل بوت التليجرام في الخلفية
+    threading.Thread(target=tg_polling, daemon=True).start()
+    # تشغيل البوتات
     threading.Thread(target=xAlInAs_restart_loop, daemon=True).start()
+    threading.Thread(target=xAlInAs_start_all, daemon=True).start()
 
-    console.print("[bold green]SCRIPT STARTED (Ctrl+C to stop)[/bold green]")
-    try:
-        xAlInAs_start_all()
-    except KeyboardInterrupt:
-        console.print("[yellow]Stopped by user.[/yellow]")
-        os._exit(0)
-    except Exception:
-        traceback.print_exc()
-
-    console.print("[bold cyan]Main loop alive - Ctrl+C to stop[/bold cyan]")
-    while True:
-        try:
-            time.sleep(60)
-        except KeyboardInterrupt:
-            console.print("[yellow]Stopped by user.[/yellow]")
-            os._exit(0)
-        except Exception:
-            time.sleep(5)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
