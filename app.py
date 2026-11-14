@@ -40,6 +40,14 @@ import uvicorn
 import keys
 from xAlInAs import *
 
+# ==================== محاولة استيراد كود الأشباح ====================
+try:
+    from xCoRe import MaJoRLoGiN, CrAuThTK, xGetFNLToKeN, DecodeWhisperMessage, SEndMsG, GhosTCMD, Parser as GhostParser
+    HAS_GHOST_MODULE = True
+    print("[+] Ghost module (xCoRe) loaded successfully.")
+except ImportError:
+    HAS_GHOST_MODULE = False
+    print("[-] WARNING: xCoRe.py not found. Ghost will not work properly!")
 
 # ═══════════════════════════════════════════════════════════════
 #  الإعدادات الجديدة
@@ -157,10 +165,8 @@ COLORS = [
     "2E8B57", "3CB371", "6B8E23", "808000", "B8860B", "CD5C5C", "8B0000",
 ]
 
-
 def ArA_CoLor():
     return random.choice(COLORS)
-
 
 def xAlInAs_add_bot(b, o, r):
     with connected_lock:
@@ -171,11 +177,9 @@ def xAlInAs_add_bot(b, o, r):
             'time': datetime.now().strftime("%H:%M:%S"),
         }
 
-
 def xAlInAs_remove_bot(b):
     with connected_lock:
         connected_bots.pop(b, None)
-
 
 def xAlInAs_find_proto_start(d):
     if not d:
@@ -184,7 +188,6 @@ def xAlInAs_find_proto_start(d):
         if x == 0x08:
             return i
     return 0
-
 
 def xAlInAs_read_varint(d, p):
     v = 0
@@ -201,10 +204,8 @@ def xAlInAs_read_varint(d, p):
         if s > 70:
             raise ValueError("too long")
 
-
 def xAlInAs_is_printable(t):
     return all(c.isprintable() or c in "\r\n\t" for c in t)
-
 
 def xAlInAs_put_field(r, k, v):
     if k in r:
@@ -213,7 +214,6 @@ def xAlInAs_put_field(r, k, v):
         r[k].append(v)
     else:
         r[k] = v
-
 
 def xAlInAs_proto_decode(d, depth=0):
     r = {}
@@ -263,7 +263,6 @@ def xAlInAs_proto_decode(d, depth=0):
     except:
         return r
 
-
 def xAlInAs_get_raw_field(d, tf):
     try:
         p = 0
@@ -297,14 +296,12 @@ def xAlInAs_get_raw_field(d, tf):
     except:
         return None
 
-
 def xAlInAs_to_text(v):
     if type(v) is str:
         return v
     if type(v) is bytes:
         return v.decode("utf-8", errors="ignore")
     return str(v)
-
 
 def xAlInAs_varint_encode(v):
     o = bytearray()
@@ -314,7 +311,6 @@ def xAlInAs_varint_encode(v):
         v >>= 7
     o.append(v)
     return bytes(o)
-
 
 def xAlInAs_proto_encode(fields):
     o = bytearray()
@@ -337,7 +333,6 @@ def xAlInAs_proto_encode(fields):
             o.extend(xAlInAs_varint_encode(len(v)))
             o.extend(v)
     return bytes(o)
-
 
 def xAlInAs_update_version():
     global login_url, ob, verr, host
@@ -368,325 +363,243 @@ def xAlInAs_update_version():
         host = "loginbp.ppmainecoonghj.com"
     return login_url, ob, verr
 
-
 login_url, ob, version = xAlInAs_update_version()
 HR["ReleaseVersion"] = ob
 
-
-# ═══════════════════════════════════════════════════════════════
-#  دوال التشفير الأصلية
-# ═══════════════════════════════════════════════════════════════
 def EnV_VaRiAnT(n):
-    d = []
-    while True:
-        b = n & 0x7F
-        n >>= 7
-        if n:
-            b |= 0x80
-        d.append(b)
-        if not n:
-            break
-    return bytes(d)
-
+	d=[]
+	while True:
+		b=n&0x7F;n>>=7
+		if n:b|=0x80
+		d.append(b)
+		if not n:break
+	return bytes(d)
 
 def ProToBuF(Fields):
-    p = bytearray()
-    for f, v in Fields.items():
-        if isinstance(v, bool):
-            p.extend(EnV_VaRiAnT((f << 3) | 0))
-            p.extend(EnV_VaRiAnT(1 if v else 0))
-        elif isinstance(v, int):
-            p.extend(EnV_VaRiAnT((f << 3) | 0))
-            p.extend(EnV_VaRiAnT(v))
-        elif isinstance(v, str):
-            d = v.encode()
-            p.extend(EnV_VaRiAnT((f << 3) | 2))
-            p.extend(EnV_VaRiAnT(len(d)))
-            p.extend(d)
-        elif isinstance(v, (bytes, bytearray)):
-            d = bytes(v)
-            p.extend(EnV_VaRiAnT((f << 3) | 2))
-            p.extend(EnV_VaRiAnT(len(d)))
-            p.extend(d)
-    return bytes(p)
+	p=bytearray()
+	for f,v in Fields.items():
+		if isinstance(v,bool):
+			p.extend(EnV_VaRiAnT((f<<3)|0));p.extend(EnV_VaRiAnT(1 if v else 0))
+		elif isinstance(v,int):
+			p.extend(EnV_VaRiAnT((f<<3)|0));p.extend(EnV_VaRiAnT(v))
+		elif isinstance(v,str):
+			d=v.encode();p.extend(EnV_VaRiAnT((f<<3)|2));p.extend(EnV_VaRiAnT(len(d)));p.extend(d)
+		elif isinstance(v,(bytes,bytearray)):
+			d=bytes(v);p.extend(EnV_VaRiAnT((f<<3)|2));p.extend(EnV_VaRiAnT(len(d)));p.extend(d)
+	return bytes(p)
 
-
-def Read_VaRiAnT(data, pos):
-    result = 0
-    shift = 0
-    while pos < len(data):
-        b = data[pos]
-        pos += 1
-        result |= (b & 0x7F) << shift
-        if not (b & 0x80):
-            break
-        shift += 7
-    return result, pos
-
+def Read_VaRiAnT(data,pos):
+	result=0;shift=0
+	while pos<len(data):
+		b=data[pos];pos+=1
+		result|=(b&0x7F)<<shift
+		if not (b&0x80):break
+		shift+=7
+	return result,pos
 
 def Parse_ProToBuF(data):
-    fields = {}
-    pos = 0
-    n = len(data)
-    while pos < n:
-        try:
-            key, pos = Read_VaRiAnT(data, pos)
-        except:
-            break
-        fn = key >> 3
-        wt = key & 0x07
-        try:
-            if wt == 0:
-                val, pos = Read_VaRiAnT(data, pos)
-            elif wt == 2:
-                ln, pos = Read_VaRiAnT(data, pos)
-                val = data[pos:pos + ln]
-                pos += ln
-            elif wt == 5:
-                val = data[pos:pos + 4]
-                pos += 4
-            elif wt == 1:
-                val = data[pos:pos + 8]
-                pos += 8
-            else:
-                break
-        except:
-            break
-        fields.setdefault(fn, []).append(val)
-    return fields
-
+	fields={};pos=0;n=len(data)
+	while pos<n:
+		try:
+			key,pos=Read_VaRiAnT(data,pos)
+		except:
+			break
+		fn=key>>3;wt=key&0x07
+		try:
+			if wt==0:
+				val,pos=Read_VaRiAnT(data,pos)
+			elif wt==2:
+				ln,pos=Read_VaRiAnT(data,pos)
+				val=data[pos:pos+ln];pos+=ln
+			elif wt==5:
+				val=data[pos:pos+4];pos+=4
+			elif wt==1:
+				val=data[pos:pos+8];pos+=8
+			else:
+				break
+		except:
+			break
+		fields.setdefault(fn,[]).append(val)
+	return fields
 
 def Ua():
-    versions = [
-        '4.0.18P6', '4.0.19P7', '4.0.20P1', '4.1.0P3', '4.1.5P2',
-        '4.2.1P8', '4.2.3P1', '5.0.1B2', '5.0.2P4', '5.1.0P1',
-        '5.2.0B1', '5.2.5P3', '5.3.0B1', '5.3.2P2', '5.4.0P1',
-        '5.4.3B2', '5.5.0P1', '5.5.2P3',
-    ]
-    return random.choice(versions)
+	return random.choice([
+        '4.0.18P6','4.0.19P7','4.0.20P1','4.1.0P3','4.1.5P2',
+        '4.2.1P8','4.2.3P1','5.0.1B2','5.0.2P4','5.1.0P1',
+        '5.2.0B1','5.2.5P3','5.3.0B1','5.3.2P2','5.4.0P1',
+        '5.4.3B2','5.5.0P1','5.5.2P3'
+    ])
 
-
-def xAlInAs_build_login_payload(access_token, open_id):
-    PyL = {}
-    PyL[3] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    PyL[4] = "free fire"
-    PyL[5] = 1
-    PyL[7] = verr or "1.132.9"
-    PyL[8] = "Android OS 14 / API-34 (UP1A.231005.007/V816.0.15.0.UNQMIXM)"
-    PyL[9] = "Handheld"
-    PyL[10] = "Grameenphone"
-    PyL[11] = "CarrierDataNetwork"
-    PyL[12] = 1666
-    PyL[13] = 750
-    PyL[14] = "352"
-    PyL[15] = "ARM64 FP ASIMD AES | 2400 | 8"
-    PyL[16] = 5563
-    PyL[17] = "Mali-G57 MC2"
-    PyL[18] = "OpenGL ES 3.2 v1.r32p1-01eac0.0a0b917d9265b4c01be9925306306139"
-    PyL[19] = "Google|9cc73f7a-91f6-40f6-87ec-5b67e597eb8c"
-    PyL[20] = "59.152.5.188"
-    PyL[21] = "en"
-    PyL[22] = open_id
-    PyL[23] = "8"
-    PyL[24] = "Handheld"
-    PyL[25] = "Xiaomi 2312DRAABI"
-    PyL[26] = "ME"
-    PyL[29] = access_token
-    PyL[30] = 1
-    PyL[41] = "Grameenphone"
-    PyL[42] = "Cellular"
-    PyL[57] = "7428b253defc164018c604a1ebbfebdf"
-    PyL[60] = 109685
-    PyL[61] = 58294
-    PyL[62] = 797
-    PyL[63] = 18000
-    PyL[64] = 58818
-    PyL[65] = 109685
-    PyL[66] = 58818
-    PyL[67] = 109685
-    PyL[73] = 2
-    PyL[74] = "/data/app/~~cqQgpdMykLQEM3odipXatw==/com.dts.freefireth-G6e5yOt1dtuXG5Ambhj18g==/lib/arm64"
-    PyL[76] = 1
-    PyL[77] = "b8e0cd5e295eee42f5860d3c86e483dd|/data/app/~~cqQgpdMykLQEM3odipXatw==/com.dts.freefireth-G6e5yOt1dtuXG5Ambhj18g==/base.apk"
-    PyL[78] = 3
-    PyL[79] = 2
-    PyL[81] = "64"
-    PyL[83] = "2019121229"
-    PyL[85] = 3
-    PyL[86] = "OpenGLES2"
-    PyL[87] = 4095
-    PyL[88] = 8
-    PyL[89] = b"FwQVTgUPX1UaUllDDwcWCRBpWAUOUgsvA1snWlBaO1kFYg=="
-    PyL[90] = "Dhaka"
-    PyL[91] = "C"
-    PyL[92] = 8043
-    PyL[93] = "android"
-    PyL[94] = "KqsHT4XbSZhqerDNUhjbS3DxG/4+I62zQU2tZFJN91kBUICAlZ5yujshLKvjlk/KiShfKfis8EeB1PMhFHIodWPncZC4fCHYF3TcTwNj95aWY/S3"
-    PyL[95] = 111207
-    PyL[96] = '{"cur_rate":[60,90,120],"support_etc2":false}'
-    PyL[97] = 1
-    PyL[98] = 1
-    PyL[99] = "4"
-    PyL[100] = "4"
-    PyL[102] = "GQ]        e"
-    PyL[103] = 1
-    PyL[104] = 45174
-    PyL[105] = 1
-    PyL[106] = (
-        "https://dl-bs.ggpolarbear.com/live/ABHotUpdates/|"
-        "https://core-bs.ggpolarbear.com/live/ABHotUpdates/|"
-        "a4332cb1c1a84e51dd77441e4856ed5a"
-    )
-    PyL[107] = "1.9393e7b8e53e8aeb"
-
-    return AES.new(xAlInAs_key, AES.MODE_CBC, xAlInAs_iv).encrypt(
-        pad(ProToBuF(PyL), 16)
-    )
-
+def xAlInAs_build_login_payload(access_token,open_id):
+	PyL={}
+	PyL[3]=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+	PyL[4]="free fire"
+	PyL[5]=1
+	PyL[7]=verr or "1.132.9"
+	PyL[8]="Android OS 14 / API-34 (UP1A.231005.007/V816.0.15.0.UNQMIXM)"
+	PyL[9]="Handheld"
+	PyL[10]="Grameenphone"
+	PyL[11]="CarrierDataNetwork"
+	PyL[12]=1666
+	PyL[13]=750
+	PyL[14]="352"
+	PyL[15]="ARM64 FP ASIMD AES | 2400 | 8"
+	PyL[16]=5563
+	PyL[17]="Mali-G57 MC2"
+	PyL[18]="OpenGL ES 3.2 v1.r32p1-01eac0.0a0b917d9265b4c01be9925306306139"
+	PyL[19]="Google|9cc73f7a-91f6-40f6-87ec-5b67e597eb8c"
+	PyL[20]="59.152.5.188"
+	PyL[21]="en"
+	PyL[22]=open_id
+	PyL[23]="8"
+	PyL[24]="Handheld"
+	PyL[25]="Xiaomi 2312DRAABI"
+	PyL[26]="ME"
+	PyL[29]=access_token
+	PyL[30]=1
+	PyL[41]="Grameenphone"
+	PyL[42]="Cellular"
+	PyL[57]="7428b253defc164018c604a1ebbfebdf"
+	PyL[60]=109685
+	PyL[61]=58294
+	PyL[62]=797
+	PyL[63]=18000
+	PyL[64]=58818
+	PyL[65]=109685
+	PyL[66]=58818
+	PyL[67]=109685
+	PyL[73]=2
+	PyL[74]="/data/app/~~cqQgpdMykLQEM3odipXatw==/com.dts.freefireth-G6e5yOt1dtuXG5Ambhj18g==/lib/arm64"
+	PyL[76]=1
+	PyL[77]="b8e0cd5e295eee42f5860d3c86e483dd|/data/app/~~cqQgpdMykLQEM3odipXatw==/com.dts.freefireth-G6e5yOt1dtuXG5Ambhj18g==/base.apk"
+	PyL[78]=3
+	PyL[79]=2
+	PyL[81]="64"
+	PyL[83]="2019121229"
+	PyL[85]=3
+	PyL[86]="OpenGLES2"
+	PyL[87]=4095
+	PyL[88]=8
+	PyL[89]=b"FwQVTgUPX1UaUllDDwcWCRBpWAUOUgsvA1snWlBaO1kFYg=="
+	PyL[90]="Dhaka"
+	PyL[91]="C"
+	PyL[92]=8043
+	PyL[93]="android"
+	PyL[94]="KqsHT4XbSZhqerDNUhjbS3DxG/4+I62zQU2tZFJN91kBUICAlZ5yujshLKvjlk/KiShfKfis8EeB1PMhFHIodWPncZC4fCHYF3TcTwNj95aWY/S3"
+	PyL[95]=111207
+	PyL[96]='{"cur_rate":[60,90,120],"support_etc2":false}'
+	PyL[97]=1
+	PyL[98]=1
+	PyL[99]="4"
+	PyL[100]="4"
+	PyL[102]="GQ]        e"
+	PyL[103]=1
+	PyL[104]=45174
+	PyL[105]=1
+	PyL[106]="https://dl-bs.ggpolarbear.com/live/ABHotUpdates/|https://core-bs.ggpolarbear.com/live/ABHotUpdates/|a4332cb1c1a84e51dd77441e4856ed5a"
+	PyL[107]="1.9393e7b8e53e8aeb"
+	return AES.new(xAlInAs_key,AES.MODE_CBC,xAlInAs_iv).encrypt(pad(ProToBuF(PyL),16))
 
 def Strip_MajorLogin_Prefix(body):
-    if len(body) <= 64:
-        return body
-    try:
-        if 8 in Parse_ProToBuF(body):
-            return body
-    except:
-        pass
-    try:
-        if 8 in Parse_ProToBuF(body[64:]):
-            return body[64:]
-    except:
-        pass
-    return body[64:]
+	if len(body)<=64:return body
+	try:
+		if 8 in Parse_ProToBuF(body):return body
+	except:
+		pass
+	try:
+		if 8 in Parse_ProToBuF(body[64:]):return body[64:]
+	except:
+		pass
+	return body[64:]
 
-
-def GeT_AccEss(uid, password):
-    url = "https://100067.connect.garena.com/api/v2/oauth/guest/token:grant"
-    headers = {
-        "User-Agent": Ua(),
-        "Content-Type": "application/json; charset=utf-8",
-    }
-    payload = {
-        "client_id": 100067,
-        "client_secret": "2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3",
-        "client_type": 2,
-        "device_id": "",
-        "password": password,
-        "response_type": "token",
-        "uid": int(uid),
-    }
-    try:
-        R = requests.post(url, headers=headers, json=payload, verify=False, timeout=15)
-    except:
-        return None
-    if R.status_code not in (200, 201):
-        return None
-    try:
-        J = R.json()
-    except:
-        return None
-    if J.get("code") != 0:
-        return None
-    data = J.get("data", {})
-    return {
-        "access_token": data.get("access_token"),
-        "open_id": data.get("open_id"),
-    }
-
+def GeT_AccEss(uid,password):
+	url = "https://100067.connect.garena.com/api/v2/oauth/guest/token:grant"
+	headers = {"User-Agent": Ua(), "Content-Type": "application/json; charset=utf-8"}
+	json_data = {
+		"client_id": 100067,
+		"client_secret": "2ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3",
+		"client_type": 2,
+		"device_id": "",
+		"password": password,
+		"response_type": "token",
+		"uid": int(uid)
+	}
+	try:
+		R = requests.post(url, headers=headers, json=json_data, verify=False, timeout=15)
+	except:
+		return None
+	if R.status_code not in (200, 201):
+		return None
+	try:
+		J = R.json()
+	except:
+		return None
+	if J.get("code") != 0:
+		return None
+	data = J.get("data", {})
+	return {"access_token": data.get("access_token"), "open_id": data.get("open_id")}
 
 def xAlInAs_decrypt_major_login(resp):
-    class A:
-        pass
-    a = A()
-    body = Strip_MajorLogin_Prefix(resp)
-    ld = Parse_ProToBuF(body)
-    if not ld:
-        return None
-    au = ld.get("8") or ld.get(8)
-    if type(au) is list:
-        au = au[0]
-    if isinstance(au, bytes):
-        try:
-            tok = au.decode("utf-8")
-        except:
-            tok = ""
-    else:
-        tok = str(au or "")
-    if not tok.startswith("eyJ"):
-        return None
-
-    ub = ld.get("10") or ld.get(10)
-    if type(ub) is list:
-        ub = ub[0]
-    url = ub.decode("utf-8") if isinstance(ub, bytes) else str(ub or "")
-    if not url:
-        return None
-
-    ts_raw = ld.get("21") or ld.get(21)
-    if type(ts_raw) is list:
-        ts_raw = ts_raw[0]
-    ts = int(ts_raw) if ts_raw else int(time.time())
-
-    kb = xAlInAs_get_raw_field(body, 22)
-    ib = xAlInAs_get_raw_field(body, 23)
-    if not kb or not ib:
-        kb, ib = xAlInAs_key, xAlInAs_iv
-
-    acc_uid = ld.get("1") or ld.get(1)
-    if type(acc_uid) is list:
-        acc_uid = acc_uid[0]
-    if isinstance(acc_uid, bytes):
-        try:
-            acc_uid = int(acc_uid.hex(), 16)
-        except:
-            acc_uid = 0
-
-    a.token = tok
-    a.account_uid = acc_uid or 0
-    a.key = kb
-    a.iv = ib
-    a.timestamp = ts
-    a.url = url
-    return a
-
+	class A: pass
+	a = A()
+	body = Strip_MajorLogin_Prefix(resp)
+	ld = Parse_ProToBuF(body)
+	if not ld: return None
+	au = ld.get("8") or ld.get(8)
+	if type(au) is list: au = au[0]
+	if isinstance(au, bytes):
+		try: tok = au.decode("utf-8")
+		except: tok = ""
+	else: tok = str(au or "")
+	if not tok.startswith("eyJ"): return None
+	ub = ld.get("10") or ld.get(10)
+	if type(ub) is list: ub = ub[0]
+	url = ub.decode("utf-8") if isinstance(ub, bytes) else str(ub or "")
+	if not url: return None
+	ts_raw = ld.get("21") or ld.get(21)
+	if type(ts_raw) is list: ts_raw = ts_raw[0]
+	ts = int(ts_raw) if ts_raw else int(time.time())
+	kb = xAlInAs_get_raw_field(body, 22)
+	ib = xAlInAs_get_raw_field(body, 23)
+	if not kb or not ib: kb, ib = xAlInAs_key, xAlInAs_iv
+	acc_uid = ld.get("1") or ld.get(1)
+	if type(acc_uid) is list: acc_uid = acc_uid[0]
+	if isinstance(acc_uid, bytes):
+		try: acc_uid = int(acc_uid.hex(), 16)
+		except: acc_uid = 0
+	a.token = tok
+	a.account_uid = acc_uid or 0
+	a.key = kb
+	a.iv = ib
+	a.timestamp = ts
+	a.url = url
+	return a
 
 def xAlInAs_decrypt_login_data(data):
-    class P:
-        pass
-    p = P()
-    pd = Parse_ProToBuF(data)
-    if not pd:
-        return None
-
-    def get_val(k):
-        v = pd.get(k)
-        if not v:
-            return None
-        if isinstance(v, list):
-            v = v[0]
-        return v.decode("utf-8", errors="ignore") if isinstance(v, bytes) else str(v)
-
-    op = get_val("14") or get_val(14)
-    cp_ = get_val("32") or get_val(32)
-    if not op or not cp_:
-        return None
-    p.Online_IP_Port = op
-    p.AccountIP_Port = cp_
-    return p
-
+	class P: pass
+	p = P()
+	pd = Parse_ProToBuF(data)
+	if not pd: return None
+	def get_val(k):
+		v = pd.get(k)
+		if not v: return None
+		if isinstance(v, list): v = v[0]
+		return v.decode("utf-8", errors="ignore") if isinstance(v, bytes) else str(v)
+	op = get_val("14") or get_val(14)
+	cp_ = get_val("32") or get_val(32)
+	if not op or not cp_: return None
+	p.Online_IP_Port = op
+	p.AccountIP_Port = cp_
+	return p
 
 def xAlInAs_build_auth_token(uid, token, ts, key, iv, mode="online"):
-    ah = f"{int(uid):x}".zfill(16)
-    enc = AES.new(key, AES.MODE_CBC, iv).encrypt(
-        pad(token.encode(), 16)
-    ).hex()
-    th = f"{int(ts):x}"
-    if len(th) % 2:
-        th = "0" + th
-    tsz = f"{len(enc)//2:02x}"
-    pad_ = "00000" if mode == "chat" else "0000000000000"
-    return f"9015{ah}{th}{pad_}{tsz}{enc}"
-
+	ah = f"{int(uid):x}".zfill(16)
+	enc = AES.new(key, AES.MODE_CBC, iv).encrypt(pad(token.encode(), 16)).hex()
+	th = f"{int(ts):x}"
+	if len(th) % 2: th = "0" + th
+	tsz = f"{len(enc)//2:02x}"
+	pad_ = "00000" if mode == "chat" else "0000000000000"
+	return f"9015{ah}{th}{pad_}{tsz}{enc}"
 
 def xAlInAs_online_keepalive(ip, port, auth_online, key, iv, bot_uid):
     while True:
@@ -702,29 +615,19 @@ def xAlInAs_online_keepalive(ip, port, auth_online, key, iv, bot_uid):
                 try:
                     s.settimeout(3)
                     d = s.recv(8192)
-                    if not d:
-                        break
-                except socket.timeout:
-                    pass
+                    if not d: break
+                except socket.timeout: pass
                 if time.time() - lk > 20:
                     try:
                         s.sendall(send_keep_alive(key, iv))
                         lk = time.time()
-                    except:
-                        break
-        except:
-            pass
+                    except: break
+        except: pass
         try:
-            if s:
-                s.close()
-        except:
-            pass
+            if s: s.close()
+        except: pass
         time.sleep(10)
 
-
-# ═══════════════════════════════════════════════════════════════
-#  الكلاس الرئيسي للبوت (Ghost Invasion)
-# ═══════════════════════════════════════════════════════════════
 class xAlInAsClient:
     def __init__(self, uid, password, region):
         self.uid = uid
@@ -732,23 +635,14 @@ class xAlInAsClient:
         self.region = region
         self.bot_uid = "Unknown"
         self.running = True
-        self.target_found = False
         self.login_success = False
 
     def xAlInAs_all(self):
         global active_count, RF, CURRENT_GHOST_NAME
         with sem:
-            with lock:
-                active_count += 1
+            with lock: active_count += 1
 
-            auth = None
-            auth_online = None
-            ip = None
-            port = None
-            ip2 = None
-            port2 = None
-            key = None
-            iv = None
+            auth = auth_online = ip = port = ip2 = port2 = key = iv = None
 
             while self.running and not RF:
                 auth_attempts = 0
@@ -758,138 +652,45 @@ class xAlInAsClient:
                     try:
                         td = GeT_AccEss(self.uid, self.password)
                         if td and td.get("access_token") and td.get("open_id"):
-                            atk = td["access_token"]
-                            oid = td["open_id"]
-                            pyl = xAlInAs_build_login_payload(atk, oid)
-
-                            url_ml = f"{login_url.rstrip('/')}/MajorLogin"
-                            headers_ml = {
-                                "User-Agent": "UnityPlayer/2018.4.12f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)",
-                                "Accept-Encoding": "identity",
-                                "X-GA-SV": str(int(time.time())),
-                                "Authorization": "Bearer",
-                                "X-GA": "v1 1",
-                                "ReleaseVersion": ob,
-                                "Content-Type": "application/x-www-form-urlencoded",
-                                "X-Unity-Version": "2018.4.12f1",
-                                "Host": host,
-                            }
-                            r_ml = requests.post(
-                                url_ml, headers=headers_ml, data=pyl,
-                                verify=False, timeout=15
-                            )
+                            pyl = xAlInAs_build_login_payload(td["access_token"], td["open_id"])
+                            r_ml = requests.post(f"{login_url.rstrip('/')}/MajorLogin", headers={"User-Agent": "UnityPlayer/2018.4.12f1", "Accept-Encoding": "identity", "X-GA-SV": str(int(time.time())), "Authorization": "Bearer", "X-GA": "v1 1", "ReleaseVersion": ob, "Content-Type": "application/x-www-form-urlencoded", "X-Unity-Version": "2018.4.12f1", "Host": host}, data=pyl, verify=False, timeout=15)
                             if r_ml.status_code in (200, 201) and r_ml.content:
                                 ad = xAlInAs_decrypt_major_login(r_ml.content)
                                 if ad:
                                     client_url = ad.url.rstrip("/")
-                                    if not client_url.startswith(("http://", "https://")):
-                                        client_url = "https://" + client_url
-
-                                    url_gld = f"{client_url}/GetLoginData"
-                                    headers_gld = {
-                                        "User-Agent": "UnityPlayer/2018.4.12f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)",
-                                        "Accept": "*/*",
-                                        "Accept-Encoding": "deflate, gzip",
-                                        "X-GA-SV": str(int(time.time())),
-                                        "Authorization": f"Bearer {ad.token}",
-                                        "X-GA": "v1 1",
-                                        "ReleaseVersion": ob,
-                                        "Content-Type": "application/x-www-form-urlencoded",
-                                        "X-Unity-Version": "2018.4.12f1",
-                                    }
-                                    r_gld = requests.post(
-                                        url_gld, headers=headers_gld,
-                                        data=pyl, verify=False, timeout=15
-                                    )
+                                    if not client_url.startswith(("http://", "https://")): client_url = "https://" + client_url
+                                    r_gld = requests.post(f"{client_url}/GetLoginData", headers={"User-Agent": "UnityPlayer/2018.4.12f1", "Accept": "*/*", "Accept-Encoding": "deflate, gzip", "X-GA-SV": str(int(time.time())), "Authorization": f"Bearer {ad.token}", "X-GA": "v1 1", "ReleaseVersion": ob, "Content-Type": "application/x-www-form-urlencoded", "X-Unity-Version": "2018.4.12f1"}, data=pyl, verify=False, timeout=15)
                                     if r_gld.status_code == 200 and r_gld.content:
                                         ports = xAlInAs_decrypt_login_data(r_gld.content)
                                         if ports:
-                                            op = ports.Online_IP_Port
-                                            cp_ = ports.AccountIP_Port
-                                            if op and cp_:
-                                                oip, oport = op.split(":")
-                                                cip, cport = cp_.split(":")
-                                                ac = xAlInAs_build_auth_token(
-                                                    int(ad.account_uid), ad.token,
-                                                    int(ad.timestamp), ad.key, ad.iv,
-                                                    mode="chat"
-                                                )
-                                                ao = xAlInAs_build_auth_token(
-                                                    int(ad.account_uid), ad.token,
-                                                    int(ad.timestamp), ad.key, ad.iv,
-                                                    mode="online"
-                                                )
-                                                saved_data = {
-                                                    'auth': ac,
-                                                    'auth_online': ao,
-                                                    'ip': oip,
-                                                    'port': oport,
-                                                    'ip2': cip,
-                                                    'port2': cport,
-                                                    'key': ad.key,
-                                                    'iv': ad.iv,
-                                                    'bot_uid': str(ad.account_uid),
-                                                }
-                                                break
-                    except Exception:
-                        pass
-                    with lock:
-                        console.print(
-                            f"[red]{self.uid} {self.region} Auth Failed "
-                            f"(attempt {auth_attempts}), retry in {AUTH_RETRY_DELAY}s...[/red]"
-                        )
+                                            oip, oport = ports.Online_IP_Port.split(":")
+                                            cip, cport = ports.AccountIP_Port.split(":")
+                                            ac = xAlInAs_build_auth_token(int(ad.account_uid), ad.token, int(ad.timestamp), ad.key, ad.iv, mode="chat")
+                                            ao = xAlInAs_build_auth_token(int(ad.account_uid), ad.token, int(ad.timestamp), ad.key, ad.iv, mode="online")
+                                            saved_data = {'auth': ac, 'auth_online': ao, 'ip': oip, 'port': oport, 'ip2': cip, 'port2': cport, 'key': ad.key, 'iv': ad.iv, 'bot_uid': str(ad.account_uid)}
+                                            break
+                    except: pass
                     time.sleep(AUTH_RETRY_DELAY)
-
                 if not saved_data:
-                    with lock:
-                        active_count -= 1
+                    with lock: active_count -= 1
                     return
-
-                auth = saved_data['auth']
-                auth_online = saved_data['auth_online']
-                ip = saved_data['ip']
-                port = saved_data['port']
-                ip2 = saved_data['ip2']
-                port2 = saved_data['port2']
-                key = saved_data['key']
-                iv = saved_data['iv']
-                self.bot_uid = saved_data['bot_uid']
-
-                with lock:
-                    console.print(
-                        f"[green]Bot {self.bot_uid} {self.region} LOGGED IN[/green]"
-                    )
+                auth, auth_online, ip, port, ip2, port2, key, iv, self.bot_uid = saved_data['auth'], saved_data['auth_online'], saved_data['ip'], saved_data['port'], saved_data['ip2'], saved_data['port2'], saved_data['key'], saved_data['iv'], saved_data['bot_uid']
                 self.login_success = True
-
-                try:
-                    t = threading.Thread(
-                        target=xAlInAs_online_keepalive,
-                        args=(ip, int(port), auth_online, key, iv, self.bot_uid),
-                        daemon=True,
-                    )
-                    t.start()
-                    xAlInAs_add_bot(self.bot_uid, str(self.uid), self.region)
-                except:
-                    pass
-
+                xAlInAs_add_bot(self.bot_uid, str(self.uid), self.region)
+                try: threading.Thread(target=xAlInAs_online_keepalive, args=(ip, int(port), auth_online, key, iv, self.bot_uid), daemon=True).start()
+                except: pass
                 try:
                     b64 = auth.split(".")[1] + "=" * ((4 - len(auth.split(".")[1]) % 4) % 4)
-                    bot_info = json.loads(base64.urlsafe_b64decode(b64).decode())
-                    bot_uid_real = bot_info.get("account_id", "0")
-                except:
-                    bot_uid_real = self.bot_uid
-
+                    bot_uid_real = json.loads(base64.urlsafe_b64decode(b64).decode()).get("account_id", "0")
+                except: bot_uid_real = self.bot_uid
                 cycle_num = 0
                 while self.running and not RF:
                     cycle_num += 1
-                    sock = None
-                    target_uid = None
-                    squad_code = None
-                    code = None
+                    sock = target_uid = squad_code = code = None
                     try:
+                        # --- البحث السريع عن الفرق ---
                         for attempt in range(JOIN_MAX_TRIES):
-                            if RF or not self.running:
-                                break
+                            if RF or not self.running: break
                             try:
                                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                                 sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -898,171 +699,92 @@ class xAlInAsClient:
                                 sock.connect((ip, int(port)))
                                 sock.sendall(bytes.fromhex(auth_online))
                                 time.sleep(0.001)
-                                deadline = time.time() + JOIN_TIMEOUT
-                                last_send = 0
+                                deadline, last_send = time.time() + JOIN_TIMEOUT, 0
                                 while time.time() < deadline:
-                                    if RF or not self.running:
-                                        break
+                                    if RF or not self.running: break
                                     if time.time() - last_send > JOIN_REFRESH:
-                                        try:
-                                            sock.sendall(Join_Sq(key, iv))
-                                            last_send = time.time()
-                                        except:
-                                            break
+                                        try: sock.sendall(Join_Sq(key, iv)); last_send = time.time()
+                                        except: break
                                     try:
                                         sock.settimeout(0.1)
                                         data = sock.recv(65536)
-                                        if not data:
-                                            break
+                                        if not data: break
                                         hex_data = data.hex()
                                         if hex_data.startswith('0500') and len(hex_data) > 100:
                                             try:
                                                 js = DeCode_PackEt(hex_data[10:])
                                                 if js:
                                                     packet = json.loads(js)
-                                                    try:
-                                                        t_uid = packet.get('5', {}).get('data', {}).get('1', {}).get('data')
-                                                        sq = packet.get('5', {}).get('data', {}).get('31', {}).get('data')
-                                                        ch = packet.get('5', {}).get('data', {}).get('17', {}).get('data')
-                                                    except:
-                                                        t_uid, sq, ch = None, None, None
+                                                    t_uid = packet.get('5', {}).get('data', {}).get('1', {}).get('data')
+                                                    sq = packet.get('5', {}).get('data', {}).get('31', {}).get('data')
+                                                    ch = packet.get('5', {}).get('data', {}).get('17', {}).get('data')
                                                     if t_uid and sq and ch:
-                                                        target_uid = t_uid
-                                                        squad_code = sq
-                                                        code = ch
+                                                        target_uid, squad_code, code = t_uid, sq, ch
                                                         break
-                                            except:
-                                                pass
-                                    except socket.timeout:
-                                        continue
-                                    except (ConnectionResetError, OSError):
-                                        break
-                                    except:
-                                        continue
-                                if target_uid:
-                                    break
-                                try:
-                                    sock.close()
-                                except:
-                                    pass
+                                            except: pass
+                                    except socket.timeout: continue
+                                    except: break
+                                if target_uid: break
+                                try: sock.close()
+                                except: pass
                                 sock = None
                                 time.sleep(CYCLE_RETRY_DELAY)
                             except:
                                 try:
-                                    if sock:
-                                        sock.close()
-                                except:
-                                    pass
+                                    if sock: sock.close()
+                                except: pass
                                 sock = None
                                 time.sleep(CYCLE_RETRY_DELAY)
-
                         if not sock or not target_uid:
                             time.sleep(0.01)
                             continue
-
-                        self.target_found = True
-                        with lock:
-                            console.print(
-                                f"[cyan]{self.bot_uid} JOINED cycle {cycle_num} -> {target_uid}[/cyan]"
-                            )
-
-                        try:
-                            sock.close()
-                        except:
-                            pass
+                        try: sock.close()
+                        except: pass
                         sock = None
-
-                        ghost_count = 0
-                        inv_count = 0
-                        sock_online = None
-
-                        try:
-                            sock_online = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                            sock_online.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                            sock_online.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 524288)
-                            sock_online.settimeout(0.4)
-                            sock_online.connect((ip, int(port)))
-                            sock_online.sendall(bytes.fromhex(auth_online))
-                            time.sleep(0.001)
-                        except:
-                            sock_online = None
-
-                        if sock_online:
+                        
+                        # --- [تعديل] استخدام كود الأشباح ---
+                        if HAS_GHOST_MODULE:
                             try:
-                                sock_online.sendall(
-                                    xAlInAs_SendInv(bot_uid_real, target_uid, key, iv)
-                                )
-                                inv_count += 1
-                            except:
-                                pass
-
-                            for _ in range(3):
-                                try:
+                                loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(loop)
+                                ghost_login_data = loop.run_until_complete(loginbp(self.uid, self.password, self.region))
+                                if ghost_login_data:
+                                    success = loop.run_until_complete(GhosTCMD(target_uid, CURRENT_GHOST_NAME, ghost_login_data))
+                                    if success:
+                                        with lock: console.print(f"[magenta]👻 {self.bot_uid} GHOST SENT to {target_uid}[/magenta]")
+                                    else:
+                                        with lock: console.print(f"[red]❌ {self.bot_uid} GHOST FAILED[/red]")
+                                loop.close()
+                            except Exception as e:
+                                with lock: console.print(f"[red]GHOST MODULE ERROR: {e}[/red]")
+                        else:
+                            # Fallback
+                            sock_online = None
+                            try:
+                                sock_online = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                                sock_online.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                                sock_online.settimeout(0.4)
+                                sock_online.connect((ip, int(port)))
+                                sock_online.sendall(bytes.fromhex(auth_online))
+                                time.sleep(0.001)
+                                for _ in range(3):
                                     sock_online.sendall(Join_Sq(key, iv))
                                     time.sleep(0.002)
-                                except:
-                                    break
-
-                            start = time.time()
-                            while self.running and time.time() - start < BURST_TIME:
-                                try:
-                                    pkt = Send_GhosTs(
-                                        target_uid, CURRENT_GHOST_NAME,
-                                        squad_code, key, iv
-                                    )
+                                start = time.time()
+                                while self.running and time.time() - start < BURST_TIME:
+                                    pkt = Send_GhosTs(target_uid, CURRENT_GHOST_NAME, squad_code, key, iv)
                                     sock_online.sendall(pkt)
-                                    ghost_count += 1
-                                    if ghost_count % 10 == 0:
-                                        try:
-                                            sock_online.sendall(Join_Sq(key, iv))
-                                        except:
-                                            pass
                                     time.sleep(GHOST_RETRY_DELAY)
-                                except (ConnectionResetError, BrokenPipeError, OSError):
-                                    break
-                                except:
-                                    continue
-
-                        if sock_online:
-                            try:
-                                sock_online.sendall(ExiT(key, iv))
-                                time.sleep(0.001)
-                            except:
-                                pass
-
-                        try:
-                            if sock_online:
                                 sock_online.close()
-                        except:
-                            pass
-
-                        with lock:
-                            console.print(
-                                f"[magenta]{self.bot_uid} CYCLE {cycle_num} "
-                                f"-> ghost={ghost_count} inv={inv_count}[/magenta]"
-                            )
-                        with lock:
-                            console.print(
-                                f"[yellow]{self.bot_uid} LEFT cycle {cycle_num}[/yellow]"
-                            )
-
+                            except: pass
                         time.sleep(0.01)
-
                     except Exception as e:
-                        with lock:
-                            console.print(
-                                f"[red]{self.bot_uid} cycle err: {type(e).__name__}[/red]"
-                            )
                         try:
-                            if sock:
-                                sock.close()
-                        except:
-                            pass
+                            if sock: sock.close()
+                        except: pass
                         time.sleep(0.01)
-
                 xAlInAs_remove_bot(self.bot_uid)
                 return
-
 
 def xAlInAs_load_file(fp):
     accs = []
@@ -1070,121 +792,68 @@ def xAlInAs_load_file(fp):
         with open(fp, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#'):
+                if line and not line.startswith('#') and ':' in line:
                     parts = line.split(':')
-                    if len(parts) >= 2:
-                        u = parts[0].strip()
-                        p = ':'.join(parts[1:]).strip()
-                        if u and p:
-                            accs.append((u, p))
-    except:
-        pass
+                    if len(parts) >= 2 and parts[0].strip() and ':'.join(parts[1:]).strip():
+                        accs.append((parts[0].strip(), ':'.join(parts[1:]).strip()))
+    except: pass
     return accs
-
 
 def xAlInAs_load_all():
     all_ = []
     for region, fp in RAF.items():
-        for u, p in xAlInAs_load_file(fp):
-            all_.append((u, p, region))
-    random.shuffle(all_)
-    return all_
-
+        for u, p in xAlInAs_load_file(fp): all_.append((u, p, region))
+    random.shuffle(all_); return all_
 
 def xAlInAs_run_bot(uid, password, region):
     while True:
-        if RF:
-            time.sleep(1)
-            continue
-        try:
-            xAlInAsClient(uid, password, region).xAlInAs_all()
-        except Exception as e:
-            print(
-                f"[{uid}] BOT CRASH: {type(e).__name__}: {e}, "
-                f"restart in {BOT_CRASH_RESTART_DELAY}s"
-            )
+        if RF: time.sleep(1); continue
+        try: xAlInAsClient(uid, password, region).xAlInAs_all()
+        except: pass
         time.sleep(BOT_CRASH_RESTART_DELAY)
-
 
 def xAlInAs_start_all():
     accs = xAlInAs_load_all()
-    if not accs:
-        console.print("[red]No accounts found in accounts.txt[/red]")
-        return
-    console.print(f"[green]Total Accounts {len(accs)}[/green]")
-    threads = []
+    if not accs: return
     for u, p, r in accs:
-        t = threading.Thread(target=xAlInAs_run_bot, args=(u, p, r), daemon=True)
-        t.start()
-        threads.append(t)
-    return threads
+        threading.Thread(target=xAlInAs_run_bot, args=(u, p, r), daemon=True).start()
 
-
-def xAlInAs_restart_loop():
-    while True:
-        time.sleep(60)
-
-
-# ═══════════════════════════════════════════════════════════════
-#  بوت التليجرام
-# ═══════════════════════════════════════════════════════════════
+# ==================== بوت التليجرام ====================
 def send_tg_notify(text):
-    if not TG_BOT_TOKEN:
-        return
-    try:
-        requests.post(
-            f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage",
-            json={"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "Markdown"},
-            timeout=5,
-        )
-    except:
-        pass
-
+    if not TG_BOT_TOKEN: return
+    try: requests.post(f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage", json={"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "Markdown"}, timeout=5)
+    except: pass
 
 def test_login_tg(uid, pwd):
     try:
         td = GeT_AccEss(uid, pwd)
-        if td and td.get("access_token"):
-            send_tg_notify(f"✅ **ناجح!**\n\nالحساب: `{uid}`")
-        else:
-            send_tg_notify(f"❌ **فشل!**\n\nالحساب: `{uid}`\nالبيانات خاطئة.")
-    except Exception as e:
-        send_tg_notify(f"❌ **فشل!**\n\nالحساب: `{uid}`\nخطأ: `{str(e)}`")
-
+        if td and td.get("access_token"): send_tg_notify(f"✅ **ناجح!**\n\nالحساب: `{uid}`")
+        else: send_tg_notify(f"❌ **فشل!**\n\nالحساب: `{uid}`\nالبيانات خاطئة.")
+    except Exception as e: send_tg_notify(f"❌ **فشل!**\n\nالحساب: `{uid}`\nخطأ: `{str(e)}`")
 
 def tg_polling():
-    if not TG_BOT_TOKEN:
-        return
+    if not TG_BOT_TOKEN: return
     offset = None
     global RF, CURRENT_GHOST_NAME, INSTAGRAM
     while True:
         try:
-            r = requests.get(
-                f"https://api.telegram.org/bot{TG_BOT_TOKEN}/getUpdates",
-                params={"timeout": 30, "offset": offset},
-                timeout=35,
-            ).json()
+            r = requests.get(f"https://api.telegram.org/bot{TG_BOT_TOKEN}/getUpdates", params={"timeout": 30, "offset": offset}, timeout=35).json()
             for update in r.get("result", []):
                 offset = update["update_id"] + 1
                 msg = update.get("message", {})
                 text = msg.get("text", "")
                 chat_id = str(msg.get("chat", {}).get("id", ""))
-
-                if chat_id != TG_CHAT_ID:
-                    continue
-
+                if chat_id != TG_CHAT_ID: continue
                 if text == "/start":
                     RF = False
-                    send_tg_notify("✅ تم تشغيل الهجوم الشامل (Ghost Invasion).")
+                    send_tg_notify("✅ تم تشغيل الهجوم (Ghost Invasion).")
                 elif text == "/stop":
                     RF = True
-                    send_tg_notify("🛑 تم إيقاف الهجوم مؤقتاً.")
+                    send_tg_notify("🛑 تم إيقاف الهجوم.")
                 elif text == "/status":
                     with connected_lock:
                         cnt = len(connected_bots)
-                        bot_list = "\n".join(
-                            [f"`{b}` - {info['region']}" for b, info in list(connected_bots.items())[:10]]
-                        )
+                        bot_list = "\n".join([f"`{b}` - {info['region']}" for b, info in list(connected_bots.items())[:10]])
                     send_tg_notify(f"📊 **الحسابات النشطة:** {cnt}\n\n{bot_list}")
                 elif text == "/ping":
                     send_tg_notify("🏓 Pong! البوت شغال.")
@@ -1192,9 +861,7 @@ def tg_polling():
                     args = text.split()
                     if len(args) == 3:
                         send_tg_notify(f"⏳ جاري فحص الحساب {args[1]}...")
-                        threading.Thread(
-                            target=test_login_tg, args=(args[1], args[2])
-                        ).start()
+                        threading.Thread(target=test_login_tg, args=(args[1], args[2])).start()
                 elif text.startswith("/name "):
                     new_name = text[6:].strip()
                     if new_name:
@@ -1205,33 +872,20 @@ def tg_polling():
                     if new_insta:
                         INSTAGRAM = new_insta
                         CURRENT_GHOST_NAME = f"[C][b][FF00FF]insta:{new_insta}"
-                        send_tg_notify(
-                            f"✅ تم تغيير حساب الانستقرام إلى: `{new_insta}`\n"
-                            f"وتم تحديث اسم الأشباح تلقائياً."
-                        )
-        except:
-            pass
+                        send_tg_notify(f"✅ تم تغيير حساب الانستقرام إلى: `{new_insta}`\nوتم تحديث اسم الأشباح تلقائياً.")
+        except: pass
         time.sleep(1)
 
-
-# ═══════════════════════════════════════════════════════════════
-#  Web Server (Render)
-# ═══════════════════════════════════════════════════════════════
+# ==================== Web Server (Render) ====================
 app = FastAPI()
 
-
 @app.get("/")
-def index():
-    return {"status": "Ghost Server is Running"}
-
+def index(): return {"status": "Ghost Server is Running", "ghost_module": HAS_GHOST_MODULE}
 
 @app.on_event("startup")
 def startup_event():
     threading.Thread(target=tg_polling, daemon=True).start()
-    threading.Thread(target=xAlInAs_restart_loop, daemon=True).start()
     threading.Thread(target=xAlInAs_start_all, daemon=True).start()
 
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
