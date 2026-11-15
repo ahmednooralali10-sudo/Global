@@ -248,7 +248,7 @@ def Send_GhosTs(Uid, Nm, sQ, K, V, lang=None):
         2: {1: int(Uid), 2: {1: int(Uid), 2: 1159, 3: f'{Nm}', 5: 12, 6: 9999,
                             7: 1, 8: {2: 1, 3: 1}, 9: 3, 10: lang},
         3: sQ
-    }}
+    }
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
 
 
@@ -359,9 +359,15 @@ def xAlInAs_SendInv(bot_uid, uid, K, V):
     }
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
 
-def xAlInAs_Msg(msg, owner, bot, K, I, lang="en"):
+
+def xAlInAs_Msg(msg, owner, bot, K, I, lang="en", squad_code=None):
+    """Send chat message. If squad_code provided, sends to Team Chat."""
     bot_id = int(bot) if str(bot).isdigit() else bot
     owner_id = int(owner) if str(owner).isdigit() else owner
+
+    # If squad_code provided → Team Chat (channel = squad_code)
+    # Otherwise → Direct/Global (channel = "ALINASPaCKeT")
+    chat_channel = str(squad_code) if squad_code else "ALINASPaCKeT"
 
     fields = {
         1: 1, 
@@ -375,7 +381,7 @@ def xAlInAs_Msg(msg, owner, bot, K, I, lang="en"):
             7: 6,
             8: xBunnEr(),
             9: {
-                1: "ALINASPaCKeT",
+                1: chat_channel,
                 4: 330,
                 13: "",
                 14: {1: 2},
@@ -397,35 +403,36 @@ def xAlInAs_Msg(msg, owner, bot, K, I, lang="en"):
 
 
 def xSendMsgRM(bot, roomid, msg, K, I, lang="en"):
-    fileds = {
-    1: bot, 
-    2: 18, 
-    4: 2,
-    5: {
-        1: bot,
-        2: roomid,
-        3: 3,
-        4: msg,
-        5: int(datetime.now().timestamp()),
-        7: 6,
-        9: {
-            1: "xAlInAs_BoT",
-            4: 301,
-            13: "",
-            14: {1: 2},
-            18: {
-                1: bot,
-                3: 1,
-                4: "\u0010\u0015\b\n\u000b\u0015\f\u000f\u0011\u0004\u0007\u0002\u0003\r\u000e\u0012\u0001\u0005\u0006"
+    fields = {
+        1: bot, 
+        2: 18, 
+        4: 2,
+        5: {
+            1: bot,
+            2: roomid,
+            3: 3,
+            4: msg,
+            5: int(datetime.now().timestamp()),
+            7: 6,
+            9: {
+                1: "xAlInAs_BoT",
+                4: 301,
+                13: "",
+                14: {1: 2},
+                18: {
+                    1: bot,
+                    3: 1,
+                    4: "\u0010\u0015\b\n\u000b\u0015\f\u000f\u0011\u0004\u0007\u0002\u0003\r\u000e\u0012\u0001\u0005\u0006"
                 }
             },
-                10: lang,
+            10: lang,
             13: {2: 1, 3: 1},
-            }
         }
+    }
     Pk = CrEaTe_ProTo(fields).hex()
     Pk = "080112" + EnC_Uid(len(Pk) // 2, Tp='Uid') + Pk
     return GeneRaTePk(Pk, '1201', K, I)
+
 
 def ExiT(K, V):
     fields = {1: 7, 2: {1: int(00000000)}}
@@ -444,9 +451,11 @@ def reflesh(uid, K, V):
     }
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
 
-def dance(teamcode,uid,K,V):
-    fields={1:21,2:{1:uid,2:909000037,5:{1:uid,3:909000037}}}
+
+def dance(teamcode, uid, K, V):
+    fields = {1: 21, 2: {1: uid, 2: 909000037, 5: {1: uid, 3: 909000037}}}
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0515', K, V)
+
 
 def GeT_Time(timestamp):
     last_login = datetime.fromtimestamp(timestamp)
@@ -502,11 +511,11 @@ def GeneRaTePk(Pk, N, K, V):
     return bytes.fromhex(HeadEr + _ + PkEnc)
 
 
-def send_msg_all_langs(sock, msg, owner, bot, key, iv):
+def send_msg_all_langs(sock, msg, owner, bot, key, iv, squad_code=None):
     sent = 0
     for lang in LANGS:
         try:
-            pkt = xAlInAs_Msg(msg, owner, bot, key, iv, lang=lang)
+            pkt = xAlInAs_Msg(msg, owner, bot, key, iv, lang=lang, squad_code=squad_code)
             sock.sendall(pkt)
             sent += 1
         except:
