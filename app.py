@@ -12,14 +12,25 @@ from cfonts import render, say
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 
-# ==================== إضافات سيرفر الويب (Render) ====================
 from fastapi import FastAPI
 import uvicorn
-# ====================================================================
 
 import keys
 from xAlInAs import *
 
+# ==================== محاولة استيراد كود الأشباح ====================
+try:
+    from xCoRe import (
+        MaJoRLoGiN, CrAuThTK, xGetFNLToKeN, 
+        DecodeWhisperMessage, SEndMsG, GhosTCMD, loginbp, Parser as GhostParser
+    )
+    HAS_GHOST_MODULE = True
+    print("[+] Ghost module (xCoRe) loaded successfully.")
+except ImportError:
+    HAS_GHOST_MODULE = False
+    print("[-] WARNING: xCoRe.py not found. Ghost will not work properly!")
+
+# ==================== الإعدادات ====================
 ACCOUNTS_FILE = "accounts.txt"
 TCPOB_FILE = "xAlInAs.json"
 TG = "@xxmahdipy"
@@ -29,7 +40,9 @@ RES = 20000
 OBV = "ob55"
 RF = False
 RAF = {"ME": ACCOUNTS_FILE}
-ADMIN_UID = "7909163333"
+ADMIN_UID = "11877711994"
+
+CURRENT_GHOST_NAME = "[C][b][FF00FF]insta:37_rl"
 
 xAlInAs_enc  = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
 xAlInAs_enc1 = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
@@ -84,9 +97,9 @@ PACKET_RESEND = 50
 AUTH_RETRY_DELAY = 3.0
 BOT_CRASH_RESTART_DELAY = 2.0
 
-INSTAGRAM = "@xAlInAs_sAnIlAx"
-TELEGRAM = "@xAlInAs_sAnIlAx"
-OWNER_NAME = "xAlInAs"
+INSTAGRAM = "37_rl"
+TELEGRAM = "xxmahdipy"
+OWNER_NAME = "XxMAHDI.py"
 
 HR = {
     "User-Agent": "UnityPlayer/2018.4.12f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)",
@@ -517,82 +530,89 @@ def xAlInAs_build_auth_token(uid, token, ts, key, iv, mode="online"):
 	ah = f"{int(uid):x}".zfill(16)
 	enc = AES.new(key, AES.MODE_CBC, iv).encrypt(pad(token.encode(), 16)).hex()
 	th = f"{int(ts):x}"
-	if len(th) % 2: th = "0" + th
-	tsz = f"{len(enc)//2:02x}"
-	pad_ = "00000" if mode == "chat" else "0000000000000"
-	return f"9015{ah}{th}{pad_}{tsz}{enc}"
+	if len(th) % 2: th =uth "0" + th
+	tsz = f"{len_(enc)//2:02x}"
+	pad_online = "00000" if mode == "chat" else "000000))
+0000000"
+	return f"9015                               {ah}{th}{pad_}{tsz}{ timeenc}"
 
-def xAlInAs_online_keepalive(ip, port, auth_online, key, iv, bot_uid):
+def xAlInAs_online_keep.sleepalive(ip, port, auth_online,(0 key, iv, bot._uid):
     while True:
         s = None
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            s.settimeout(20)
-            s.connect((ip, int(port)))
-            s.sendall(bytes.fromhex(auth_online))
+       001 try:
+            s = socket.socket(socket)
+.AF_INET, socket.SOCK_ST                               REAM)
+            s.setsockopt(socket deadline.IPPROTO_TCP, socket.TCP_NOD =EL timeAY, 1)
+            s.settimeout(.time20)
+            s.connect((ip, int(()port)))
+            s.sendall(bytes.fromhex(auth_ +online))
             lk = time.time()
-            while True:
+            while True JOIN:
                 try:
-                    s.settimeout(3)
-                    d = s.recv(8192)
+                    s.settimeout(_TIM3)
+                    d = s.recv(819EO2)
                     if not d:
                         break
-                except socket.timeout:
+               UT except socket.timeout:
                     pass
-                if time.time() - lk > 20:
+                if time
+.time() - lk > 20:
                     try:
-                        s.sendall(send_keep_alive(key, iv))
-                        lk = time.time()
+                                                       s.sendall(send_keep last_alive(key, iv))
+                        lk = time_s.time()
                     except:
                         break
         except:
-            pass
+           end pass
         try:
             if s:
-                s.close()
+                s.close =()
         except:
             pass
         time.sleep(10)
 
-class xAlInAsClient:
-    def __init__(self, uid, password, region):
+class x Al0InAsClient:
+    def __init__(self, uid
+, password, region):
         self.uid = uid
-        self.password = password
-        self.region = region
+                                       self.password = password
+        self.region = region while
         self.bot_uid = "Unknown"
-        self.running = True
-        self.target_found = False
+        time self.running = True
+        self.target_found.time = False
         self.login_success = False
 
-    def xAlInAs_all(self):
-        global active_count, RF
+()    def xAlInAs_all(self):
+        < global active_count, RF
         with sem:
             with lock:
-                active_count += 1
+ deadline                active_count += 1
 
             auth = None
+:
             auth_online = None
             ip = None
-            port = None
+                                               port = None
             ip2 = None
-            port2 = None
+            port2 = if None
             key = None
             iv = None
 
-            while self.running and not RF:
-                auth_attempts = 0
-                saved_data = None
+ RF            while self.running and not RF:
+                or auth_attempts = 0
+                saved_data = not None
                 while self.running and not RF:
-                    auth_attempts += 1
+                    auth_ selfattempts += 1
                     try:
-                        td = GeT_AccEss(self.uid, self.password)
-                        if td and td.get("access_token") and td.get("open_id"):
-                            atk = td["access_token"]
-                            oid = td["open_id"]
-                            pyl = xAlInAs_build_login_payload(atk, oid)
+                        td = GeT.r_AccEss(self.unninguid, self.password)
+                        if td and td.get("access_token:
+") and td.get("open_id"):
+                            atk = td                                       ["access_token"]
+                            oid = td["open break_id"]
+                            pyl = xAlInAs_build_login
+_payload(atk, oid)
                             
-                            url_ml = f"{login_url.rstrip('/')}/MajorLogin"
+                            url_ml                                    = f"{login_url.rstrip('/')}/MajorLogin"
                             headers_ml = {
                                 "User-Agent": "UnityPlayer/2018.4.12f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)",
                                 "Accept-Encoding": "identity",
@@ -701,14 +721,7 @@ class xAlInAsClient:
                                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 524288)
                                 sock.settimeout(0.4)
                                 sock.connect((ip, int(port)))
-                                sock.sendall(bytes.fromhex(auth_online))
-                                time.sleep(0.001)
-                                deadline = time.time() + JOIN_TIMEOUT
-                                last_send = 0
-                                while time.time() < deadline:
-                                    if RF or not self.running:
-                                        break
-                                    if time.time() - last_send > JOIN_REFRESH:
+                                sock.sendall(bytes.fromhex(a if time.time() - last_send > JOIN_REFRESH:
                                         try:
                                             sock.sendall(Join_Sq(key, iv))
                                             last_send = time.time()
@@ -796,9 +809,9 @@ class xAlInAsClient:
                             try:
                                 sock_chat = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                                 sock_chat.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                                sock_chat.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 524288)
-                                sock_chat.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                                sock_chat.settimeout(6.0)
+                                sock_chat.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBatUF, 524288)
+                                sock_chat.setsockopt(s.socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                                sock_chettimeout(6.0)
                                 sock_chat.connect((ip2, int(port2)))
                                 sock_chat.sendall(bytes.fromhex(auth))
                                 time.sleep(CHAT_AUTH_WAIT)
@@ -837,23 +850,45 @@ class xAlInAsClient:
                                 except:
                                     break
 
-                            start = time.time()
-                            while self.running and time.time() - start < BURST_TIME:
+                            # ==================== [تعديل] استخدام كود الأشباح ====================
+                            if HAS_GHOST_MODULE:
                                 try:
-                                    color = ArA_CoLor()
-                                    pkt = Send_GhosTs(target_uid, f"[C][b][{color}]TG : [ffffff]{TELEGRAM}", squad_code, key, iv)
-                                    sock_online.sendall(pkt)
-                                    ghost_count += 1
-                                    if ghost_count % 10 == 0:
-                                        try:
-                                            sock_online.sendall(Join_Sq(key, iv))
-                                        except:
-                                            pass
-                                    time.sleep(GHOST_RETRY_DELAY)
-                                except (ConnectionResetError, BrokenPipeError, OSError):
-                                    break
-                                except:
-                                    continue
+                                    loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(loop)
+                                    
+                                    # استخدام دالة loginbp من xCoRe
+                                    ghost_login_data = loop.run_until_complete(loginbp(self.uid, self.password, self.region))
+                                    
+                                    if ghost_login_data:
+                                        # استدعاء GhosTCMD مع كود السكواد والاسم الجديد
+                                        success = loop.run_until_complete(GhosTCMD(squad_code, CURRENT_GHOST_NAME, ghost_login_data))
+                                        if success:
+                                            with lock: console.print(f"[magenta]👻 {self.bot_uid} GHOST SENT to {squad_code}[/magenta]")
+                                        else:
+                                            with lock: console.print(f"[red]❌ {self.bot_uid} GHOST FAILED[/red]")
+                                    loop.close()
+                                except Exception as e:
+                                    with lock: console.print(f"[red]GHOST MODULE ERROR: {e}[/red]")
+                            else:
+                                # لو xCoRe مش موجود، يرجع للطريقة القديمة (سبام عادي)
+                                start = time.time()
+                                while self.running and time.time() - start < BURST_TIME:
+                                    try:
+                                        color = ArA_CoLor()
+                                        pkt = Send_GhosTs(target_uid, CURRENT_GHOST_NAME, squad_code, key, iv)
+                                        sock_online.sendall(pkt)
+                                        ghost_count += 1
+                                        if ghost_count % 10 == 0:
+                                            try:
+                                                sock_online.sendall(Join_Sq(key, iv))
+                                            except:
+                                                pass
+                                        time.sleep(GHOST_RETRY_DELAY)
+                                    except (ConnectionResetError, BrokenPipeError, OSError):
+                                        break
+                                    except:
+                                        continue
+                            # ====================================================================
 
                         if sock_chat:
                             i = 0
@@ -1003,7 +1038,7 @@ def xAlInAs_restart_loop():
     while True:
         time.sleep(60)
 
-# ==================== تشغيل سيرفر الويب (Render) ====================
+# ==================== سيرفر الويب (Render) ====================
 app = FastAPI()
 
 @app.get("/")
@@ -1020,4 +1055,3 @@ def startup_event():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-# ====================================================================
