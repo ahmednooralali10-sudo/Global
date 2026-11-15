@@ -530,11 +530,10 @@ def xAlInAs_build_auth_token(uid, token, ts, key, iv, mode="online"):
 	ah = f"{int(uid):x}".zfill(16)
 	enc = AES.new(key, AES.MODE_CBC, iv).encrypt(pad(token.encode(), 16)).hex()
 	th = f"{int(ts):x}"
-	if len(th) % 2: th =uth "0" + th
-	tsz = f"{len_(enc)//2:02x}"
-	pad_online = "00000" if mode == "chat" else "000000))
-0000000"
-	return f"9015                               {ah}{th}{pad_}{tsz}{ timeenc}"
+	if len(th) % 2: th = "0" + th
+	tsz = f"{len(enc)//2:02x}"
+	pad_ = "00000" if mode == "chat" else "0000000000000"
+	return f"9015{ah}{th}{pad_}{tsz}{enc}"                               {ah}{th}{pad_}{tsz}{ timeenc}"
 
 def xAlInAs_online_keep.sleepalive(ip, port, auth_online,(0 key, iv, bot._uid):
     while True:
