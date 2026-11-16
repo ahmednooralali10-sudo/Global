@@ -43,7 +43,7 @@ RAF = {"ME": ACCOUNTS_FILE}
 ADMIN_UID = "11877711994"
 
 CURRENT_GHOST_NAME = "[C][b][FF00FF]instgram ; 37_rl"
-DANCE_EMOTE_ID = 909000102  # الرقصة اللي طلبتها
+DANCE_EMOTE_ID = 909000102
 
 xAlInAs_enc  = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
 xAlInAs_enc1 = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
@@ -856,7 +856,6 @@ class xAlInAsClient:
                                 try:
                                     loop = asyncio.new_event_loop()
                                     asyncio.set_event_loop(loop)
-                                    # هنا يتم إرسال الشبح باستخدام الاسم الملون
                                     success = loop.run_until_complete(GhosTCMD(squad_code, CURRENT_GHOST_NAME, self.uid, self.password, self.region))
                                     if success:
                                         with lock: console.print(f"[magenta]👻 {self.bot_uid} GHOST SENT to {squad_code}[/magenta]")
