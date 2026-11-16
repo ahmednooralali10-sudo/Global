@@ -42,8 +42,8 @@ RF = False
 RAF = {"ME": ACCOUNTS_FILE}
 ADMIN_UID = "11877711994"
 
-# الاسم الملون اللي طلبته
 CURRENT_GHOST_NAME = "[C][b][FF00FF]instgram ; 37_rl"
+DANCE_EMOTE_ID = 909000102  # الرقصة اللي طلبتها
 
 xAlInAs_enc  = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
 xAlInAs_enc1 = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
@@ -865,6 +865,20 @@ class xAlInAsClient:
                                     loop.close()
                                 except Exception as e:
                                     with lock: console.print(f"[red]GHOST MODULE ERROR: {e}[/red]")
+                            # ====================================================================
+                            
+                            # ==================== [تعديل] تشغيل الرقصة ====================
+                            try:
+                                if sock_online:
+                                    # إرسال أمر الرقص (Emote) باستخدام ID الرقصة المطلوبة
+                                    # الهدف هنا هو البوت نفسه (self.uid) عشان يرقص
+                                    emote_pkt = Emote_k(int(self.uid), DANCE_EMOTE_ID, bot_uid_real, key, iv)
+                                    sock_online.sendall(emote_pkt)
+                                    time.sleep(0.2)
+                                    sock_online.sendall(emote_pkt) # نرسلها مرتين عشان تضمن التشغيل
+                                    with lock: console.print(f"[cyan]{self.bot_uid} DANCING NOW[/cyan]")
+                            except Exception as e:
+                                with lock: console.print(f"[red]DANCE ERROR: {e}[/red]")
                             # ====================================================================
 
                         if sock_chat:
