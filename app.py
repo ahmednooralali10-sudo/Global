@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 import json, base64, datetime, re, http.client, ssl, gzip, asyncio, gc, sys, os, time
 import threading, queue, socket, struct, traceback, uuid, codecs, hmac, hashlib, string, random
+import subprocess
+import tempfile
+import shutil
 from io import BytesIO
 from datetime import datetime, timedelta
 
@@ -29,6 +32,32 @@ try:
 except ImportError:
     HAS_GHOST_MODULE = False
     print("[-] WARNING: xCoRe.py not found. Ghost will not work properly!")
+
+# ==================== استيراد نظام الصوت من HELLX ====================
+# تأكد أن هذه الملفات موجودة في نفس المجلد
+try:
+    from auth import (
+        HELLXgenerate_access, HELLXbuild_major_login, HELLXmajor_login, HELLXget_login_data,
+        HELLXdecode_major_login, HELLXdecode_login_data, HELLXbuild_auth_startup,
+        HELLXbuild_post_auth_packets, HELLXbuild_ping_packet, HELLXbuild_accept_invite,
+        HELLXbuild_voice_step1, HELLXbuild_voice_auth, HELLXbuild_voice_auth_device,
+        HELLXbuild_voice_ping, HELLXbuild_voice_stat_report, HELLXbuild_voice_broadcast_sub,
+        HELLXbuild_voice_join, HELLXbuild_voice_custom, HELLXparse_voice_custom_response,
+        HELLXbuild_voice_redirect, HELLXbuild_chat_auth, HELLXbuild_chat_global_auth,
+        HELLXbuild_chat_message, HELLXbuild_leave_team, HELLXbuild_chat_close,
+        HELLXfetch_version, HELLXfetch_city, _VOICE_BASE_HEX, HELLXbuild_emote,
+        HELLXbuild_create_squad, HELLXbuild_change_squad_size, HELLXbuild_squad_info_request,
+        HELLXbuild_ghost_msg, HELLXbuild_dm_message, HELLXbuild_join_sq, HELLXequip_emote,
+    )
+    from voice import HELLXextract_garena_voice_data, HELLXextract_voice_from_tcp
+    from network import HELLXconnect_online, HELLXping_loop, HELLXread_loop
+    from proto import HELLXdecode_proto, HELLXcreate_proto, HELLXgenerate_packet, HELLXenc_varint
+    from utils import HELLXload_accounts, HELLXdefault_headers, HELLXlog
+    HAS_VOICE_MODULE = True
+    print("[+] Voice module (HELLX) loaded successfully.")
+except ImportError as e:
+    HAS_VOICE_MODULE = False
+    print(f"[-] WARNING: Voice module not found: {e}. Voice will not work.")
 
 # ==================== الإعدادات ====================
 ACCOUNTS_FILE = "accounts.txt"
@@ -100,6 +129,8 @@ BOT_CRASH_RESTART_DELAY = 2.0
 INSTAGRAM = "37_rl"
 TELEGRAM = "xxmahdipy"
 OWNER_NAME = "XxMAHDI.py"
+
+YOUTUBE_URL = "https://youtu.be/P0uaLRO6V1U?si=XiR792eTXFlDHuic"
 
 HR = {
     "User-Agent": "UnityPlayer/2018.4.12f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)",
@@ -321,6 +352,934 @@ def xAlInAs_update_version():
 
 login_url, ob, version = xAlInAs_update_version()
 HR["ReleaseVersion"] = ob
+
+# ==================== VOICE SYSTEM (from HELLX) ====================
+class VoiceStreamer:
+    def __init__(self, uid, password, region, youtube_url):
+        self.uid = uid
+        self.password = password
+        self.region = region
+        self.youtube_url = youtube_url
+        self.key = xAlInAs_key
+        self.iv = xAlInAs_iv
+        self.token = None
+        self.login_url = None
+        self.timestamp = None
+        self.online_ip = "98.98.162.30"
+        self.online_port = 39699
+        self.chat_ip = None
+        self.chat_port = None
+        self.voice_ip = None
+        self.voice_port = None
+        self.voice_region_id = None
+        self.voice_secret = None
+        self.voice_chat_key = None
+        self.chat_region_id = None
+        self.team_owner_uid = None
+        self.region_prefix = "ME"
+        self.ext_region = "ME"
+        self._sdk_verify_domain = "ff.rtc.grtc.garenanow.com"
+        self.writer = None
+        self._voice_writer = None
+        self._voice_reader = None
+        self._voice_ping_task = None
+        self._voice_connect_task = None
+        self._processed_invite_code = None
+        self.voice_candidates = []
+        self.opus_bitrate = 18000
+        self.opus_samplerate = 16000
+        self.opus_channels = 1
+        self.voice_ssrc = b'\x0c\x43\x03\x3e'
+        self._voice_f5 = 0
+        self._voice_f3 = 0x13e6
+        self._voice_heartbeat_interval = 5.0
+        self._voice_ip = None
+        self._voice_port = None
+        self._udp_task = None
+        self._current_ogg = None
+        self._track_title = ""
+        self._track_channel = ""
+        self._track_total_frames = 0
+        self._track_current_frame = 0
+        self._progress_task = None
+        self._stopped_frame = 0
+        self._volume = 100
+        self._lyrics_enabled = False
+        self._lyrics_data = []
+        self._lyrics_task = None
+
+    async def _handle_tcp_data(self, data):
+        buffer = bytearray(data)
+        pos = 0
+        while pos < len(buffer) - 5:
+            opcode = buffer[pos]
+            length = struct.unpack('>I', buffer[pos+1:pos+5])[0]
+            if 0 < length < 200000 and pos + 5 + length <= len(buffer):
+                payload = bytes(buffer[pos+5:pos+5+length])
+                try:
+                    proto_data = HELLXdecode_proto(payload)
+                    if not proto_data:
+                        pos += 5 + length
+                        continue
+                    field5 = proto_data.get('5')
+                    if isinstance(field5, dict):
+                        code = field5.get('8')
+                        owner_uid = field5.get('1', self.uid)
+                        if code and isinstance(code, str) and '_' in code:
+                            if code != self._processed_invite_code:
+                                self._processed_invite_code = code
+                                accept_pkt = HELLXbuild_accept_invite(owner_uid, code, self.key, self.iv)
+                                if self.writer:
+                                    self.writer.write(accept_pkt)
+                                    await self.writer.drain()
+                                    HELLXlog("TEAM", f"Invitation accepted. code={code}")
+                    if not self.voice_region_id and isinstance(field5, dict):
+                        region_id = field5.get('17')
+                        if region_id:
+                            self.voice_region_id = int(region_id)
+                            self.chat_region_id = int(self.voice_region_id / 256 + 0.5) * 256
+                            self.team_owner_uid = int(field5.get('1', self.uid))
+                            HELLXlog("TEAM", f"region_id={self.voice_region_id} owner={self.team_owner_uid}")
+                            chat_key = field5.get('31')
+                            if chat_key:
+                                self.voice_chat_key = str(chat_key)
+                            if getattr(self, '_joining', False):
+                                self._join_success = True
+                            asyncio.create_task(self._connect_chat())
+                            if not self._voice_connect_task or self._voice_connect_task.done():
+                                self._voice_connect_task = asyncio.create_task(self._voice_connect())
+                    if isinstance(field5, dict):
+                        sender_uid_online = str(field5.get('1', ''))
+                        message_online = field5.get('4', '')
+                        if isinstance(message_online, str) and message_online.strip() and sender_uid_online != str(self.uid):
+                            HELLXlog("CHAT", f"[online][{sender_uid_online}]: {message_online}")
+                except Exception:
+                    pass
+                pos += 5 + length
+            else:
+                pos += 1
+
+    async def _voice_connect(self):
+        if not self.voice_region_id:
+            HELLXlog("VOICE", "ERROR: No region_id")
+            return
+        self._voice_f5 = 0
+        self._voice_f3 = 0x13e6
+        import re as _re
+        import aiohttp as _aiohttp
+        import struct as _st2
+
+        async def _read_voice_frame(reader, timeout):
+            header = await asyncio.wait_for(reader.readexactly(4), timeout)
+            frame_length = _st2.unpack('>I', header)[0]
+            if frame_length <= 0 or frame_length > 65536:
+                raise ValueError(f"invalid voice frame length: {frame_length}")
+            return await asyncio.wait_for(reader.readexactly(frame_length), timeout)
+
+        sdk_token = None
+        redirect_ip, redirect_port = None, None
+        SDK_VERIFY_URL = f"https://{self._sdk_verify_domain}/sdk/sdk_verify"
+        _SDK_VERIFY_PAYLOAD = bytes.fromhex(
+            '0a8e010800100b180122074f6e65506c75732a013930cc80868c023a0961726d3634'
+            '2d76386142004a2439313864346563382d383733332d343930622d626334362d643132'
+            '666139396337383238522a464644353846423446373646363438433241354532314542'
+            '4346413341414538314234433942374439375a05766f69636562064e45323231316802'
+            '720471636f6d12800160ad4251d2f821e2701e5e1d8b607d2b34dcb0c512300ac3e5839'
+            '6155780dc64686b20d05581c038ae28539fc3bc21ced330e31721e18e6c626972829f'
+            '6878cb8ec7d95f2f7391bd25f9d7296f09f56f9bc5bccabaf10f09b58c39dc02c08995'
+            'd6abe727d93bcea4123da86ad42f6500fa68e74ddc2ed2cb7af0aadd22d2ec93180120'
+            '063800'
+        )
+
+        def _parse_sdk_response(data):
+            nonlocal sdk_token, redirect_ip, redirect_port
+            if len(data) < 4:
+                return
+            _vproto = HELLXdecode_proto(data)
+            _f5 = _vproto.get('5')
+            _candidates = _f5 if isinstance(_f5, list) else ([_f5] if _f5 else [])
+            for _r in _candidates:
+                if isinstance(_r, bytes):
+                    _r = HELLXdecode_proto(_r)
+                if isinstance(_r, dict):
+                    _rip = _r.get('1')
+                    _rport = _r.get('2')
+                    if isinstance(_rip, str) and '.' in _rip and _rport:
+                        redirect_ip = _rip
+                        redirect_port = int(_rport)
+                        HELLXlog("VOICE", f"SDK verify redirect: {redirect_ip}:{redirect_port}")
+                        break
+            import re as _re2
+            if not redirect_ip:
+                m_ip = _re2.search(rb'([\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3})', data)
+                m_port = _re2.search(rb'\x10([\x80-\xff]?.)', data[data.find(b'\x0a\x0d') + 15:] if b'\x0a\x0d' in data else b'')
+                if m_ip:
+                    redirect_ip = m_ip.group(1).decode()
+                    HELLXlog("VOICE", f"SDK verify redirect (regex): {redirect_ip}")
+                if not redirect_port and m_port:
+                    _pb = m_port.group(1)
+                    if len(_pb) == 1:
+                        redirect_port = _pb[0]
+                    elif len(_pb) == 2 and _pb[0] & 0x80:
+                        redirect_port = (_pb[0] & 0x7f) | (_pb[1] << 7)
+            m_opus = _re2.search(rb'OPUS_BITRATE[\x00-\x20]{0,8}(\d{4,6})', data)
+            if m_opus:
+                _brate = int(m_opus.group(1).decode())
+                if 8000 <= _brate <= 64000:
+                    self.opus_bitrate = _brate
+                    HELLXlog("VOICE", f"OPUS_BITRATE from server: {_brate}")
+            _pos = 0
+            while _pos < len(data) - 2:
+                if data[_pos] == 0x12:
+                    _p2 = _pos + 1; _vlen = 0; _shift = 0
+                    while _p2 < len(data):
+                        _b = data[_p2]; _vlen |= (_b & 0x7F) << _shift; _p2 += 1; _shift += 7
+                        if not (_b & 0x80): break
+                    if _vlen == 128 and _p2 + 128 <= len(data):
+                        sdk_token = data[_p2:_p2 + 128]
+                        break
+                _pos += 1
+            HELLXlog("VOICE", f"SDK token: {sdk_token.hex()[:32] if sdk_token else 'None'}")
+
+        try:
+            _ssl_ctx = __import__('ssl').create_default_context()
+            _ssl_ctx.check_hostname = False
+            _ssl_ctx.verify_mode = __import__('ssl').CERT_NONE
+            async with _aiohttp.ClientSession() as _sess:
+                async with _sess.post(
+                    SDK_VERIFY_URL,
+                    data=_SDK_VERIFY_PAYLOAD,
+                    headers={
+                        "Host": self._sdk_verify_domain,
+                        "Accept": "*/*",
+                        "Accept-Encoding": "identity",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "Content-Length": str(len(_SDK_VERIFY_PAYLOAD)),
+                    },
+                    ssl=_ssl_ctx,
+                    timeout=_aiohttp.ClientTimeout(total=8)
+                ) as _resp:
+                    _rbody = await _resp.read()
+                    HELLXlog("VOICE", f"SDK verify HTTPS: status={_resp.status} len={len(_rbody)}")
+                    if _resp.status == 200 and len(_rbody) > 4:
+                        _parse_sdk_response(_rbody)
+        except Exception as e:
+            HELLXlog("VOICE", f"SDK verify HTTPS failed: {e}, trying TCP fallback...")
+
+        if not redirect_ip:
+            try:
+                import socket as _sock
+                import struct as _st3
+                _infos = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: _sock.getaddrinfo(self._sdk_verify_domain, 8012, _sock.AF_INET)
+                )
+                _tcp_ips = list(dict.fromkeys(info[4][0] for info in _infos))
+                HELLXlog("VOICE", f"SDK verify TCP fallback: DNS={_tcp_ips}")
+                _tcp_pkt = _st3.pack('>I', len(_SDK_VERIFY_PAYLOAD)) + _SDK_VERIFY_PAYLOAD
+                for _tip in _tcp_ips:
+                    try:
+                        _tr, _tw = await asyncio.wait_for(
+                            asyncio.open_connection(_tip, 8012), timeout=5.0)
+                        _tw.write(_tcp_pkt)
+                        await _tw.drain()
+                        _tbody = b""
+                        try:
+                            _chunk = await asyncio.wait_for(_tr.read(65536), timeout=8.0)
+                            if _chunk:
+                                _tbody = _chunk
+                                while True:
+                                    try:
+                                        _more = await asyncio.wait_for(_tr.read(65536), timeout=2.0)
+                                        if not _more: break
+                                        _tbody += _more
+                                    except asyncio.TimeoutError:
+                                        break
+                        except asyncio.TimeoutError:
+                            pass
+                        try:
+                            _tw.close()
+                        except Exception:
+                            pass
+                        if _tbody:
+                            HELLXlog("VOICE", f"SDK verify TCP: {_tip}:8012 RX {len(_tbody)}B")
+                            _parse_sdk_response(_tbody[4:] if len(_tbody) > 4 else _tbody)
+                            if redirect_ip:
+                                break
+                    except Exception as _te:
+                        HELLXlog("VOICE", f"SDK verify TCP {_tip} failed: {_te}")
+            except Exception as e:
+                HELLXlog("VOICE", f"SDK verify TCP fallback failed: {e}")
+
+        if not redirect_ip or not redirect_port:
+            HELLXlog("VOICE", "ERROR: No redirect from SDK verify")
+            return
+        HELLXlog("VOICE", f"Step2: {redirect_ip}:{redirect_port}")
+        try:
+            r2, w2 = await asyncio.wait_for(
+                asyncio.open_connection(redirect_ip, redirect_port), timeout=5.0)
+        except Exception as e:
+            HELLXlog("VOICE", f"Step2 failed: {e}")
+            return
+        redir_pkt = HELLXbuild_voice_redirect(self.uid, self.voice_region_id, self.region_prefix, self.ext_region)
+        HELLXlog("VOICE", f"Step2 TCP CONNECT: {redirect_ip}:{redirect_port}")
+        HELLXlog("VOICE", f"Step2 REQUEST ({len(redir_pkt)}B): {redir_pkt.hex()}")
+        w2.write(redir_pkt)
+        await w2.drain()
+        HELLXlog("VOICE", "Step2: TX sent")
+        voice_ip, voice_port = None, None
+        try:
+            header2 = await asyncio.wait_for(r2.readexactly(4), timeout=5.0)
+            response_length = struct.unpack('>I', header2)[0]
+            if response_length <= 0 or response_length > 65536:
+                raise ValueError(f"invalid Step2 response length: {response_length}")
+            resp2 = header2 + await asyncio.wait_for(
+                r2.readexactly(response_length), timeout=5.0
+            )
+            if resp2:
+                HELLXlog("VOICE", f"Step2 RESPONSE ({len(resp2)}B): {resp2.hex()}")
+                data = resp2[4:]
+                proto = HELLXdecode_proto(data)
+                ip_val = proto.get('1')
+                port_val = proto.get('2')
+                if isinstance(ip_val, str) and '.' in ip_val:
+                    voice_ip = ip_val
+                if isinstance(port_val, int):
+                    voice_port = port_val
+                HELLXlog("VOICE", f"UDP VOICE TARGET: {voice_ip}:{voice_port} (audio UDP port={voice_port + 2 if voice_port else None})")
+        except asyncio.TimeoutError:
+            HELLXlog("VOICE", "Step2: timeout")
+        w2.close()
+        if not voice_ip or not voice_port:
+            HELLXlog("VOICE", "ERROR: No voice IP from redirect")
+            return
+        HELLXlog("VOICE", f"Step3: {voice_ip}:{voice_port}")
+        try:
+            r3, w3 = await asyncio.wait_for(
+                asyncio.open_connection(voice_ip, voice_port), timeout=5.0)
+        except Exception as e:
+            HELLXlog("VOICE", f"Step3 failed: {e}")
+            return
+        self._voice_writer = w3
+        self._voice_reader = r3
+        auth3 = HELLXbuild_voice_auth(self.uid, self.voice_region_id, voice_port, self.region_prefix)
+        w3.write(auth3[:4])
+        await w3.drain()
+        w3.write(auth3[4:])
+        await w3.drain()
+        HELLXlog("VOICE", "Step3: TX auth type=7")
+        try:
+            resp3 = await _read_voice_frame(r3, 3.0)
+            if resp3:
+                _p = HELLXdecode_proto(resp3)
+                HELLXlog("VOICE", f"Step3 resp: {_p}")
+                self._voice_f3 = int(_p.get('3', 0x13e6))
+                f5_value = _p.get('5', _p.get('13', 0))
+                if isinstance(f5_value, dict):
+                    f5_value = f5_value.get('1', 0)
+                if isinstance(f5_value, list):
+                    f5_value = f5_value[0] if f5_value else 0
+                self._voice_f5 = int(f5_value) & 0xFFFFFFFF
+                HELLXlog("VOICE", f"f5=0x{self._voice_f5:08x} f3=0x{self._voice_f3:04x}")
+        except (asyncio.TimeoutError, TypeError, ValueError):
+            pass
+        if self._voice_f5 == 0:
+            HELLXlog("VOICE", "f5=0 detected, wrong MCU session. Sending warning to chat...")
+            asyncio.create_task(self._send_chat_message(
+                "[F52727]Wrong IPs detected, please wait, i will handle!\n"
+                "[A627F5]If voice still not coming, please contact:\n"
+                "[27EBF5]Make bot leave and create a new team -> invite it.\n"
+                "[F227F5]Leave command => !leave or /help"
+            ))
+            try:
+                w3.close()
+                await w3.wait_closed()
+            except Exception:
+                pass
+            self._voice_writer = None
+            self._voice_reader = None
+            await asyncio.sleep(3)
+            self._voice_connect_task = asyncio.create_task(self._voice_connect())
+            return
+        custom = HELLXbuild_voice_custom(self.uid, self.voice_region_id, mcu_ip=voice_ip, region_prefix=self.region_prefix)
+        w3.write(custom[:4])
+        await w3.drain()
+        w3.write(custom[4:])
+        await w3.drain()
+        HELLXlog("VOICE", "Step3: TX custom binary")
+        try:
+            resp4 = await _read_voice_frame(r3, 3.0)
+            if resp4:
+                HELLXlog("VOICE", f"Custom resp: {resp4.hex()[:80]}")
+                raw = resp4[4:] if resp4[:4] != b'\xfe\xff\xff\x7f' else resp4
+                idx = raw.find(b'\xfe\xff\xff\x7f')
+                if idx != -1:
+                    ts_idx = raw.find(b'\x17\x76', idx)
+                    if ts_idx != -1 and ts_idx + 6 <= len(raw):
+                        self.voice_session_ts = raw[ts_idx+2:ts_idx+6]
+                        HELLXlog("VOICE", f"session_ts: {self.voice_session_ts.hex()}")
+        except asyncio.TimeoutError:
+            pass
+        if self._voice_ping_task:
+            self._voice_ping_task.cancel()
+        self._voice_ping_task = asyncio.create_task(
+            self._voice_ping_loop(w3, r3)
+        )
+        self._voice_ip = voice_ip
+        self._voice_port = voice_port
+        async def _voice_tcp_reader():
+            try:
+                while True:
+                    try:
+                        data = await _read_voice_frame(r3, 30.0)
+                    except (asyncio.IncompleteReadError, ConnectionError):
+                        HELLXlog("VOICE", "TCP: Server closed connection!")
+                        if self._udp_task and not self._udp_task.done():
+                            self._udp_task.cancel()
+                        break
+                    HELLXlog("VOICE", f"TCP RX: {len(data)}B hex={data.hex()}")
+                    try:
+                        p = HELLXdecode_proto(data)
+                        inner = p.get('1', {})
+                        pkt_type = inner.get('1', 0) if isinstance(inner, dict) else 0
+                        field2 = p.get('2', 0)
+                        if pkt_type == 0x0b and field2:
+                            HELLXlog("VOICE", f"TCP: 0x0b received, re-sending auth type=7")
+                            self._voice_ssrc_refresh = True
+                            async def _do_reauth():
+                                auth3 = HELLXbuild_voice_auth(self.uid, self.voice_region_id, voice_port, self.region_prefix)
+                                w3.write(auth3[:4]); await w3.drain()
+                                w3.write(auth3[4:]); await w3.drain()
+                                custom = HELLXbuild_voice_custom(self.uid, self.voice_region_id, mcu_ip=voice_ip, region_prefix=self.region_prefix)
+                                w3.write(custom[:4]); await w3.drain()
+                                w3.write(custom[4:]); await w3.drain()
+                                HELLXlog("VOICE", "TCP: Re-auth sent")
+                            asyncio.create_task(_do_reauth())
+                    except Exception:
+                        pass
+            except Exception as e:
+                HELLXlog("VOICE", f"TCP reader error: {e}")
+        asyncio.create_task(_voice_tcp_reader())
+        HELLXlog("VOICE", f"Step3: Done. Streaming to {voice_ip}:{voice_port+2}")
+        asyncio.create_task(self._play_yt(self.youtube_url))
+
+    async def _leave_team(self):
+        HELLXlog("TEAM", "Leaving team...")
+        if self.writer:
+            leave_pkt = HELLXbuild_leave_team(int(self.uid), self.key, self.iv)
+            self.writer.write(leave_pkt)
+            await self.writer.drain()
+        if self._chat_writer:
+            try:
+                close_pkt = HELLXbuild_chat_close(int(self.uid), self.key, self.iv)
+                self._chat_writer.write(close_pkt)
+                await self._chat_writer.drain()
+            except Exception:
+                pass
+        if self._udp_task and not self._udp_task.done():
+            self._udp_task.cancel()
+        if self._progress_task and not self._progress_task.done():
+            self._progress_task.cancel()
+        if self._voice_ping_task and not self._voice_ping_task.done():
+            self._voice_ping_task.cancel()
+        if self._voice_connect_task and not self._voice_connect_task.done():
+            self._voice_connect_task.cancel()
+        self.voice_region_id = None
+        self.chat_region_id = None
+        self.team_owner_uid = None
+        self.voice_chat_key = None
+        self._processed_invite_code = None
+        self._voice_ip = None
+        self._voice_port = None
+        self._voice_writer = None
+        self._voice_reader = None
+        self._current_ogg = None
+        self._track_title = ""
+        self._track_channel = ""
+        self._track_total_frames = 0
+        self._track_current_frame = 0
+        self._stopped_frame = 0
+        HELLXlog("TEAM", "Left team. Waiting for new invite...")
+
+    async def _connect_chat(self):
+        if not self._chat_writer or self._chat_writer.transport.is_closing():
+            HELLXlog("CHAT", "No chat connection!")
+            return
+        if not self.voice_region_id:
+            return
+        try:
+            w = self._chat_writer
+            owner = self.team_owner_uid if self.team_owner_uid else int(self.uid)
+            auth_pkt = HELLXbuild_chat_auth(owner, str(self.chat_region_id), self.key, self.iv)
+            w.write(auth_pkt)
+            await w.drain()
+            HELLXlog("CHAT", f"Auth sent (owner={owner} region={self.chat_region_id})")
+        except Exception as e:
+            HELLXlog("CHAT", f"Chat auth failed: {e}")
+
+    async def _chat_read_loop(self, reader):
+        try:
+            while True:
+                data = await reader.read(16384)
+                if not data:
+                    HELLXlog("CHAT", "Disconnected — reconnecting...")
+                    asyncio.create_task(self._reconnect_chat())
+                    break
+                await self._handle_chat_data(data)
+        except Exception as e:
+            HELLXlog("CHAT", f"Error: {e} — reconnecting...")
+            asyncio.create_task(self._reconnect_chat())
+
+    async def _reconnect_chat(self):
+        await asyncio.sleep(2)
+        if not self.chat_ip or not self.chat_port:
+            return
+        try:
+            auth_hex = HELLXbuild_auth_startup(self.uid, self.token, self.timestamp, self.key, self.iv)
+            cr, cw = await asyncio.wait_for(
+                asyncio.open_connection(self.chat_ip, self.chat_port), timeout=5.0)
+            self._chat_reader = cr
+            self._chat_writer = cw
+            cw.write(bytes.fromhex(auth_hex))
+            await cw.drain()
+            HELLXlog("CHAT", "Reconnected")
+            if self.voice_region_id and self.team_owner_uid:
+                owner = self.team_owner_uid
+                auth_pkt = HELLXbuild_chat_auth(owner, str(self.chat_region_id), self.key, self.iv)
+                cw.write(auth_pkt)
+                await cw.drain()
+            asyncio.create_task(self._chat_read_loop(cr))
+            asyncio.create_task(self._chat_keepalive_loop(cw))
+        except Exception as e:
+            HELLXlog("CHAT", f"Reconnect failed: {e}")
+
+    async def _handle_chat_data(self, data: bytes):
+        self._chat_buffer.extend(data)
+        buffer = self._chat_buffer
+        pos = 0
+        while len(buffer) - pos >= 5:
+            length = struct.unpack('>I', buffer[pos+1:pos+5])[0]
+            if 0 < length < 200000 and pos + 5 + length <= len(buffer):
+                payload = bytes(buffer[pos+5:pos+5+length])
+                try:
+                    proto_data = HELLXdecode_proto(payload)
+                    if proto_data:
+                        field5 = proto_data.get('5')
+                        if isinstance(field5, dict):
+                            sender_uid = str(field5.get('1', ''))
+                            message = field5.get('4', '')
+                            msg_type = field5.get('3', 0)
+                            sender_name = ""
+                            f9 = field5.get('9', {})
+                            if isinstance(f9, dict):
+                                sender_name = str(f9.get('1', ''))
+                            if isinstance(message, str) and message.strip() and sender_uid != str(self.uid):
+                                HELLXlog("CHAT", f"[{sender_name}|{sender_uid}]: {message}")
+                                if str(msg_type) == '2':
+                                    asyncio.create_task(self._handle_dm(message.strip(), sender_name, sender_uid))
+                                else:
+                                    asyncio.create_task(self._handle_command(message.strip(), sender_name, sender_uid))
+                        self._scan_for_commands(proto_data)
+                except Exception as e:
+                    HELLXlog("CHAT", f"Parse error: {e}")
+                pos += 5 + length
+            else:
+                if length <= 0 or length >= 200000:
+                    pos += 1
+                else:
+                    break
+        if pos:
+            del buffer[:pos]
+
+    def _scan_for_commands(self, obj, depth=0):
+        if depth > 5:
+            return
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if isinstance(v, str) and v.strip().lower() == '/leave':
+                    asyncio.create_task(self._leave_team())
+                elif isinstance(v, (dict, list)):
+                    self._scan_for_commands(v, depth+1)
+        elif isinstance(obj, list):
+            for item in obj:
+                self._scan_for_commands(item, depth+1)
+
+    async def _chat_keepalive_loop(self, writer):
+        try:
+            while writer and not writer.transport.is_closing():
+                await asyncio.sleep(5)
+                try:
+                    writer.write(bytes.fromhex('0201'))
+                    await writer.drain()
+                except Exception:
+                    break
+        except asyncio.CancelledError:
+            pass
+
+    async def _send_chat_message(self, message: str):
+        if not self._chat_writer:
+            HELLXlog("CHAT", "No writer!")
+            return
+        try:
+            import time as _t
+            ts = int(_t.time())
+            owner = self.team_owner_uid if self.team_owner_uid else int(self.uid)
+            pkt = await HELLXbuild_chat_message(int(self.uid), owner, message, ts, self.key, self.iv)
+            self._chat_writer.write(pkt)
+            await self._chat_writer.drain()
+            HELLXlog("CHAT", f"Sent: {message[:60]}")
+        except Exception as e:
+            import traceback
+            HELLXlog("CHAT", f"Send error: {e} | {traceback.format_exc()[-200:]}")
+
+    async def _voice_ping_loop(self, writer, reader):
+        try:
+            counter = 0
+            while writer and not writer.transport.is_closing():
+                await asyncio.sleep(5)
+                try:
+                    session_id = getattr(self, '_voice_f3', 0x0b)
+                    ping_pkt = HELLXbuild_voice_ping(self.uid, self.voice_region_id, self.voice_port, session_id)
+                    writer.write(ping_pkt)
+                    await writer.drain()
+                    counter += 1
+                except Exception as e:
+                    HELLXlog("VOICE", f"TCP ping error: {e}")
+                    break
+        except asyncio.CancelledError:
+            pass
+
+    async def _play_yt(self, url: str, lyrics: bool = False):
+        import subprocess, tempfile as _tmp, os as _os
+        if self._udp_task and not self._udp_task.done():
+            self._udp_task.cancel()
+            await asyncio.sleep(0.5)
+        if not self._voice_ip or not self._voice_port:
+            await self._send_chat_message("[27EBF5]Voice connection is still starting, please wait...")
+            deadline = asyncio.get_running_loop().time() + 20.0
+            while (not self._voice_ip or not self._voice_port) and asyncio.get_running_loop().time() < deadline:
+                await asyncio.sleep(0.25)
+            if not self._voice_ip or not self._voice_port:
+                await self._send_chat_message("[F52727]Voice connection failed or timed out.")
+                return
+        wav_path = _tmp.mktemp(suffix='.wav')
+        ogg_path = _tmp.mktemp(suffix='.opus')
+        volume_val = self._volume / 100.0
+        def _encode():
+            import glob as _glob
+            raw_path = _tmp.mktemp()
+            ffmpeg_path = _ffmpeg_executable()
+            subprocess.run([
+                *_yt_dlp_command(), "-x",
+                "--audio-format", "wav",
+                "--audio-quality", "0",
+                "--ffmpeg-location", ffmpeg_path,
+                "-o", raw_path + ".%(ext)s",
+                "--no-playlist", url
+            ], check=True, capture_output=True, text=True)
+            matches = _glob.glob(raw_path + ".*")
+            if not matches:
+                raise Exception("yt-dlp produced no output file")
+            raw_file = matches[0]
+            HELLXlog("VOICE", f"Downloaded: {raw_file} ({_os.path.getsize(raw_file)} bytes)")
+            subprocess.run([
+                _ffmpeg_executable(), "-loglevel", "quiet", "-y",
+                "-i", raw_file,
+                "-ar", "16000", "-ac", "1",
+                "-af", f"volume={volume_val},loudnorm=I=-16:TP=-1.5:LRA=11",
+                wav_path
+            ], check=True)
+            HELLXlog("VOICE", f"Resampled: {wav_path} ({_os.path.getsize(wav_path)} bytes)")
+            try: _os.unlink(raw_file)
+            except: pass
+            subprocess.run([
+                r"C:\Users\axira\Documents\LVL UP\opus\opus\opusenc.exe",
+                "--speech", "--bitrate", str(self.opus_bitrate // 1000), "--hard-cbr",
+                "--framesize", "20", "--quiet", wav_path, ogg_path
+            ], check=True)
+            data = open(ogg_path, 'rb').read()
+            HELLXlog("VOICE", f"Encoded: {len(data)} bytes opus")
+            try: _os.unlink(wav_path)
+            except: pass
+            try: _os.unlink(ogg_path)
+            except: pass
+            return data
+        loop = asyncio.get_event_loop()
+        try:
+            ogg_data = await loop.run_in_executor(None, _encode)
+        except Exception as e:
+            await self._send_chat_message(f"[F52727]Download failed: {str(e)[:60]}")
+            return
+        self._current_ogg = ogg_data
+        self._track_total_frames = len(list(_ogg_opus_frames_bytes(ogg_data)))
+        self._track_current_frame = 0
+        self._udp_task = asyncio.create_task(
+            self._voice_udp_loop(self._voice_ip, self._voice_port, ogg_data=ogg_data)
+        )
+        if self._progress_task and not self._progress_task.done():
+            self._progress_task.cancel()
+        self._progress_task = asyncio.create_task(self._auto_progress_loop())
+
+    async def _auto_progress_loop(self):
+        try:
+            await asyncio.sleep(15)
+            while self._udp_task and not self._udp_task.done():
+                if self._track_total_frames > 0:
+                    frame = self._track_current_frame
+                    total = self._track_total_frames
+                    elapsed_s = int(frame * 0.02)
+                    total_s = int(total * 0.02)
+                    pct = min(frame / total, 1.0)
+                    bar_len = 16
+                    filled = int(bar_len * pct)
+                    bar = "[27EBF5]" + "\u25a0" * filled + "[5427F5]" + "\u25a1" * (bar_len - filled)
+                    elapsed_str = f"{elapsed_s//60}:{elapsed_s%60:02d}"
+                    total_str = f"{total_s//60}:{total_s%60:02d}"
+                    playing = not self._udp_task.done()
+                    status = "[27EBF5]\u25b6" if playing else "[F52727]\u23f8"
+                    await self._send_chat_message(
+                        f"{status} [5427F5]{self._track_title[:38]}\n"
+                        f"[A627F5]{self._track_channel[:30]}\n"
+                        f"{bar}\n"
+                        f"[27EBF5]{elapsed_str} [F227F5]/ [27EBF5]{total_str}  "
+                        f"[A627F5]Vol:{self._volume}%"
+                    )
+                await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            pass
+
+    async def _voice_udp_loop(self, ip: str, port: int, encode_task=None, ogg_data: bytes = None, start_frame: int = 0):
+        import socket as _sock
+        import struct as _st
+        import time as _time
+        udp_port = port + 2
+        if ogg_data is None and encode_task is not None:
+            ogg_data = await encode_task
+        if not ogg_data:
+            HELLXlog("VOICE", "UDP: No audio data")
+            return
+        frames = list(_ogg_opus_frames_bytes(ogg_data))
+        converted = []
+        for f in frames:
+            if f[0] == 0x78:
+                continue
+            if f[0] == 0x4b and len(f) > 2 and f[1] == 0x01:
+                converted.append(bytes([0x48]) + f[2:])
+            else:
+                converted.append(f)
+        frames = converted
+        HELLXlog("VOICE", f"UDP: Streaming {len(frames)} frames from {start_frame} to {ip}:{udp_port}")
+        udp = _sock.socket(_sock.AF_INET, _sock.SOCK_DGRAM)
+        magic = b'\x41\x6f'
+        import random as _random
+        seq = _random.randint(0, 0xFFFF)
+        ts = _random.randint(0, 0xFFFFFFFF)
+        FRAME_SAMPLES = 0x3c0
+        FRAME_DURATION = 0.020
+        f3_val = getattr(self, '_voice_f3', 0x13e6)
+        FIXED_2 = b'\x00\x00' + f3_val.to_bytes(2, 'big')
+        mic_open = b'\x71\x5c\x35\x07\x00\x00\x00\x00\x80\x02\x00\x00\x00\x00' + f3_val.to_bytes(2, 'big')
+        udp.setblocking(False)
+        loop = asyncio.get_running_loop()
+        udp_rx_count = 0
+
+        async def _udp_receiver():
+            nonlocal udp_rx_count
+            try:
+                while True:
+                    packet, address = await loop.sock_recvfrom(udp, 4096)
+                    udp_rx_count += 1
+                    if udp_rx_count <= 5 or udp_rx_count % 100 == 0:
+                        HELLXlog(
+                            "VOICE",
+                            f"UDP RX: #{udp_rx_count} {len(packet)}B from {address} hex={packet[:32].hex()}"
+                        )
+            except asyncio.CancelledError:
+                pass
+            except (ConnectionError, OSError) as e:
+                HELLXlog("VOICE", f"UDP receiver stopped: {e}")
+
+        udp_rx_task = asyncio.create_task(_udp_receiver())
+        try:
+            udp.sendto(mic_open, (ip, udp_port))
+        except OSError as e:
+            HELLXlog("VOICE", f"UDP: Failed to open voice stream: {e}")
+        try:
+            while True:
+                seq_loop = seq
+                ts_loop = ts
+                loop_start = start_frame if seq_loop == seq else 0
+                self._track_current_frame = loop_start
+                next_send = _time.monotonic()
+                for i in range(loop_start, len(frames)):
+                    opus_frame = frames[i]
+                    f5_val = getattr(self, '_voice_f5', 0)
+                    FIXED_1 = f5_val.to_bytes(4, 'big')
+                    header = _st.pack('>2sHI4s4s', magic, seq_loop & 0xFFFF, ts_loop & 0xFFFFFFFF, FIXED_1, FIXED_2)
+                    try:
+                        udp.sendto(header + opus_frame, (ip, udp_port))
+                    except Exception:
+                        pass
+                    if i == loop_start:
+                        HELLXlog("VOICE", f"UDP: Streaming started (frame {i})")
+                    if i % 500 == 0 and i > loop_start:
+                        HELLXlog("VOICE", f"UDP: Frame {i}/{len(frames)}")
+                    self._track_current_frame = i
+                    seq_loop = (seq_loop + 1) & 0xFFFF
+                    ts_loop = (ts_loop + FRAME_SAMPLES) & 0xFFFFFFFF
+                    next_send += FRAME_DURATION
+                    sleep_time = next_send - _time.monotonic()
+                    if sleep_time > 0:
+                        try:
+                            await asyncio.sleep(sleep_time)
+                        except asyncio.CancelledError:
+                            self._stopped_frame = i
+                            HELLXlog("VOICE", f"UDP: Stopped at frame {i}")
+                            raise
+                seq = seq_loop
+                ts = ts_loop
+                start_frame = 0
+                HELLXlog("VOICE", "UDP: Track finished, restarting...")
+        except asyncio.CancelledError:
+            HELLXlog("VOICE", "UDP: Stopped (cancelled)")
+        except Exception as e:
+            HELLXlog("VOICE", f"UDP: FATAL ERROR {type(e).__name__}: {e}")
+        finally:
+            udp_rx_task.cancel()
+            try:
+                await udp_rx_task
+            except asyncio.CancelledError:
+                pass
+            udp.close()
+
+    async def run(self):
+        HELLXlog("AUTH", f"Logging in {self.uid}...")
+        headers = HELLXdefault_headers()
+        current_version, server_url, client_ip = await HELLXfetch_version()
+        if not current_version:
+            current_version = "1.126.7"
+        if not server_url:
+            server_url = "https://loginbp.ggpolarbear.com/"
+        if not client_ip:
+            client_ip = "129.45.8.219"
+        HELLXlog("AUTH", f"Version={current_version} server_url={server_url} client_ip={client_ip}")
+        self._current_version = current_version
+        city = await HELLXfetch_city(client_ip)
+        if not city:
+            city = "Oran"
+        HELLXlog("AUTH", f"GeoCity={city}")
+        open_id, access_token = await HELLXgenerate_access(self.uid, self.password, headers['User-Agent'])
+        if not open_id:
+            HELLXlog("AUTH", "OAuth Failed")
+            return
+        HELLXlog("AUTH", "OAuth Success. Sending MajorLogin...")
+        major_payload = HELLXbuild_major_login(open_id, access_token, version=current_version, client_ip=client_ip, city=city)
+        major_resp = await HELLXmajor_login(major_payload, headers, server_url=server_url)
+        if not major_resp:
+            HELLXlog("AUTH", "MajorLogin Failed")
+            return
+        major_proto = HELLXdecode_major_login(major_resp)
+        HELLXlog("AUTH", f"MajorLogin raw: {major_resp.hex()[:80]}")
+        _raw_p = HELLXdecode_proto(major_resp)
+        HELLXlog("AUTH", f"MajorLogin proto keys: {list(_raw_p.keys())}")
+        self.token = getattr(major_proto, 'token', None) or _raw_p.get('8') or None
+        self.login_url = getattr(major_proto, 'url', None) or _raw_p.get('10') or None
+        proto_ts = getattr(major_proto, 'timestamp', None) or _raw_p.get('21')
+        self.timestamp = int(proto_ts) if proto_ts else int(time.time())
+        account_uid = getattr(major_proto, 'account_uid', None) or _raw_p.get('1')
+        if account_uid:
+            self.uid = str(account_uid)
+        new_key = getattr(major_proto, 'key', None) or (_raw_p.get('22') if isinstance(_raw_p.get('22'), bytes) else None)
+        new_iv = getattr(major_proto, 'iv', None) or (_raw_p.get('23') if isinstance(_raw_p.get('23'), bytes) else None)
+        if new_key and len(new_key) == 16:
+            self.key = new_key
+            HELLXlog("AUTH", f"Dynamic KEY extracted: {self.key.hex()}")
+        if new_iv and len(new_iv) == 16:
+            self.iv = new_iv
+            HELLXlog("AUTH", f"Dynamic IV extracted: {self.iv.hex()}")
+        HELLXlog("AUTH", f"MajorLogin OK. uid={self.uid} url={self.login_url}")
+        login_data_resp = await HELLXget_login_data(self.login_url, open_id, access_token, self.token, headers, version=current_version, client_ip=client_ip, city=city)
+        if not login_data_resp:
+            HELLXlog("AUTH", "GetLoginData Failed")
+            return
+        self.voice_candidates = []  
+        voice_data = HELLXextract_garena_voice_data(login_data_resp)
+        for entry in voice_data["idc_servers"]:
+            parts = entry['ip_port'].split(':')
+            ip, port = parts[0], int(parts[1])
+            HELLXlog("VOICE", f"IDC Server => region={entry['region']} idc={entry['idc']} ip_port={entry['ip_port']}")
+            if entry['idc'] == 'IDC2':
+                self.voice_ip = ip
+                self.voice_port = port
+                self.voice_candidates.insert(0, (ip, port))
+            else:
+                self.voice_candidates.append((ip, port))
+        if voice_data["webrtc"]:
+            w = voice_data["webrtc"]
+            HELLXlog("VOICE", f"WebRTC Fallback => domains={w['domains']} ips={w['ips']}")
+            sdk_domains = w.get('domains', [])
+            if sdk_domains:
+                first_domain = sdk_domains[0]
+                self._sdk_verify_domain = first_domain
+        region_val = _raw_p.get('2') or _raw_p.get('3')
+        if region_val and isinstance(region_val, str) and region_val.isalpha():
+            self.region_prefix = region_val.upper()
+            _region_to_ext = {
+                'EUROPE': 'eu', 'VN': 'vn', 'SA': 'sa', 'BR': 'br',
+                'ID': 'id', 'TW': 'tw', 'TH': 'th', 'SG': 'sg',
+                'ME': 'me', 'IND': 'in', 'NA': 'na', 'LATAM': 'la',
+            }
+            _region_to_sdk_domain = {
+                'EUROPE': 'ff.rtc.grtc.garenanow.com',
+                'VN': 'ff.rtc.grtc.garenanow.com',
+                'SA': 'ff.rtc.grtc.garenanow.com',
+                'BR': 'ff.rtc.grtc.garenanow.com',
+                'ID': 'ff.rtc.grtc.garenanow.com',
+                'TW': 'ff.rtc.grtc.garenanow.com',
+                'TH': 'ff.rtc.grtc.garenanow.com',
+                'SG': 'ff.rtc.grtc.garenanow.com',
+                'ME': 'ff.rtc.grtc.garenanow.com',
+                'IND': 'ff.rtc.grtc.garenanow.com',
+            }
+            self.ext_region = _region_to_ext.get(self.region_prefix, self.region_prefix.lower()[:2])
+            if not voice_data.get("webrtc"):
+                self._sdk_verify_domain = _region_to_sdk_domain.get(self.region_prefix, 'ff.rtc.grtc.garenanow.com')
+            HELLXlog("AUTH", f"Region prefix: {self.region_prefix} ext: {self.ext_region} sdk_domain: {self._sdk_verify_domain}")
+        ld_proto = HELLXdecode_login_data(login_data_resp)
+        online_port_str = getattr(ld_proto, 'Online_IP_Port', None) or getattr(ld_proto, 'online_ip_port', None)
+        account_port_str = getattr(ld_proto, 'AccountIP_Port', None) or getattr(ld_proto, 'account_ip_port', None)
+        if online_port_str and ':' in online_port_str:
+            parts = online_port_str.split(":")
+            self.online_ip = parts[0]
+            self.online_port = int(parts[1])
+            HELLXlog("NETWORK", f"Online Server from GetLoginData: {self.online_ip}:{self.online_port}")
+        if account_port_str and ':' in account_port_str:
+            parts = account_port_str.split(":")
+            self.chat_ip = parts[0]
+            self.chat_port = int(parts[1])
+            HELLXlog("NETWORK", f"Chat Server from GetLoginData: {self.chat_ip}:{self.chat_port}")
+        auth_hex = HELLXbuild_auth_startup(self.uid, self.token, self.timestamp, self.key, self.iv)
+        if self.chat_ip and self.chat_port:
+            try:
+                cr, cw = await asyncio.wait_for(
+                    asyncio.open_connection(self.chat_ip, self.chat_port), timeout=5.0)
+                self._chat_reader = cr
+                self._chat_writer = cw
+                cw.write(bytes.fromhex(auth_hex))
+                await cw.drain()
+                HELLXlog("CHAT", f"Early connect + startup auth sent ({self.chat_ip}:{self.chat_port})")
+                asyncio.create_task(self._chat_read_loop(cr))
+                asyncio.create_task(self._chat_keepalive_loop(cw))
+            except Exception as e:
+                HELLXlog("CHAT", f"Early connect failed: {e}")
+        HELLXlog("NETWORK", f"Connecting to Online Server ({self.online_ip}:{self.online_port})...")
+        reader, writer = await HELLXconnect_online(self.online_ip, self.online_port, auth_hex)
+        if not writer:
+            return
+        self.writer = writer
+        asyncio.create_task(HELLXping_loop(writer, HELLXbuild_ping_packet, self.key, self.iv))
+        await HELLXread_loop(reader, self._handle_tcp_data, self.key, self.iv)
+
+# ==================== END VOICE SYSTEM ====================
 
 # ==================== AUTH & LOGIN FUNCTIONS ====================
 def EnV_VaRiAnT(n):
@@ -717,16 +1676,17 @@ class xAlInAsClient:
                                 sock.sendall(bytes.fromhex(auth_online))
                                 time.sleep(0.001)
                                 deadline = time.time() + JOIN_TIMEOUT
-                                last_send = 0
+                                last_send = 01
                                 while time.time() < deadline:
-                                    if RF or not self.running:
+                                    if RF or not self)
+.running:
                                         break
-                                    if time.time() - last_send > JOIN_REFRESH:
-                                        try:
-                                            sock.sendall(Join_Sq(key, iv))
+                                    if time.time()                                - last_send > JOIN_REFRESH:
+                                        try sock:
+                                            sock.sendall(Join_Sq(key, iv_ch))
                                             last_send = time.time()
                                         except:
-                                            break
+                                            breakat
                                     try:
                                         sock.settimeout(0.1)
                                         data = sock.recv(65536)
@@ -810,8 +1770,7 @@ class xAlInAsClient:
                                 sock_chat = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                                 sock_chat.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                                 sock_chat.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 524288)
-                                sock_chat.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                                sock_chat.settimeout(6.0)
+                                sock_chat.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, .settimeout(6.0)
                                 sock_chat.connect((ip2, int(port2)))
                                 sock_chat.sendall(bytes.fromhex(auth))
                                 time.sleep(CHAT_AUTH_WAIT)
@@ -850,41 +1809,15 @@ class xAlInAsClient:
                                 except:
                                     break
 
-                            # ==================== [تعديل] استخدام كود الأشباح ====================
-                            if HAS_GHOST_MODULE:
+                            # ==================== [تعديل] تشغيل الصوت ====================
+                            if HAS_VOICE_MODULE:
                                 try:
                                     loop = asyncio.new_event_loop()
                                     asyncio.set_event_loop(loop)
-                                    
-                                    ghost_login_data = loop.run_until_complete(loginbp(self.uid, self.password, self.region))
-                                    
-                                    if ghost_login_data:
-                                        success = loop.run_until_complete(GhosTCMD(squad_code, CURRENT_GHOST_NAME, ghost_login_data))
-                                        if success:
-                                            with lock: console.print(f"[magenta]👻 {self.bot_uid} GHOST SENT to {squad_code}[/magenta]")
-                                        else:
-                                            with lock: console.print(f"[red]❌ {self.bot_uid} GHOST FAILED[/red]")
-                                    loop.close()
+                                    voice_bot = VoiceStreamer(self.uid, self.password, self.region, YOUTUBE_URL)
+                                    loop.run_until_complete(voice_bot.run())
                                 except Exception as e:
-                                    with lock: console.print(f"[red]GHOST MODULE ERROR: {e}[/red]")
-                            else:
-                                start = time.time()
-                                while self.running and time.time() - start < BURST_TIME:
-                                    try:
-                                        color = ArA_CoLor()
-                                        pkt = Send_GhosTs(target_uid, CURRENT_GHOST_NAME, squad_code, key, iv)
-                                        sock_online.sendall(pkt)
-                                        ghost_count += 1
-                                        if ghost_count % 10 == 0:
-                                            try:
-                                                sock_online.sendall(Join_Sq(key, iv))
-                                            except:
-                                                pass
-                                        time.sleep(GHOST_RETRY_DELAY)
-                                    except (ConnectionResetError, BrokenPipeError, OSError):
-                                        break
-                                    except:
-                                        continue
+                                    with lock: console.print(f"[red]VOICE MODULE ERROR: {e}[/red]")
                             # ====================================================================
 
                         if sock_chat:
