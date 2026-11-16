@@ -435,7 +435,7 @@ def xSendMsgRM(bot, roomid, msg, K, I, lang="en"):
 
 
 def ExiT(K, V):
-    fields = {1: 7, 2: {1: int(00000000)}}
+    fields = {1: 7, 2: {1: int(0)}}
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
 
 
