@@ -34,7 +34,6 @@ except ImportError:
     print("[-] WARNING: xCoRe.py not found. Ghost will not work properly!")
 
 # ==================== استيراد نظام الصوت من HELLX ====================
-# تأكد أن هذه الملفات موجودة في نفس المجلد
 try:
     from auth import (
         HELLXgenerate_access, HELLXbuild_major_login, HELLXmajor_login, HELLXget_login_data,
@@ -1679,14 +1678,13 @@ class xAlInAsClient:
                                 last_send = 1
                                 while time.time() < deadline:
                                     if RF or not self.running:
-.running:
                                         break
-                                    if time.time()                                - last_send > JOIN_REFRESH:
-                                        try sock:
-                                            sock.sendall(Join_Sq(key, iv_ch))
+                                    if time.time() - last_send > JOIN_REFRESH:
+                                        try:
+                                            sock.sendall(Join_Sq(key, iv))
                                             last_send = time.time()
                                         except:
-                                            breakat
+                                            break
                                     try:
                                         sock.settimeout(0.1)
                                         data = sock.recv(65536)
@@ -1770,7 +1768,8 @@ class xAlInAsClient:
                                 sock_chat = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                                 sock_chat.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                                 sock_chat.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 524288)
-                                sock_chat.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, .settimeout(6.0)
+                                sock_chat.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                                sock_chat.settimeout(6.0)
                                 sock_chat.connect((ip2, int(port2)))
                                 sock_chat.sendall(bytes.fromhex(auth))
                                 time.sleep(CHAT_AUTH_WAIT)
