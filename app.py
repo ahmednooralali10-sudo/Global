@@ -792,19 +792,16 @@ class xAlInAsClient:
                         ghost_count = 0
                         msg_count = 0
                         inv_count = 0
-))
                         sock_online = None
                         sock_chat = None
 
                         try:
-                            sock_online = socket.socket(socket                               .AF_INET, socket.SOCK_STREAM)
-                            sock_ invonline.setsockopt(socket.IP_countPROTO_TCP, socket +=.TCP_NODELAY,  1)
-                            sock_online.s1etsockopt(socket.SOL_SOCKET
-, socket.SO_RCVBUF,                            524288)
-                            sock_online.settime exceptout(0.4)
-                            sock_online:
-.connect((ip, int(port)))
-                            sock_                               online.sendall(bytes.fromhex(auth_online))
+                            sock_online = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                            sock_online.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                            sock_online.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 524288)
+                            sock_online.settimeout(0.4)
+                            sock_online.connect((ip, int(port)))
+                            sock_online.sendall(bytes.fromhex(auth_online))
                             time.sleep(0.001)
                         except:
                             sock_online = None
@@ -842,7 +839,10 @@ class xAlInAsClient:
 
                         if sock_online:
                             try:
-                                sock_online.sendall(xAlInAs_SendInv(bot_uid_real, target_uid, key, iv pass
+                                sock_online.sendall(xAlInAs_SendInv(bot_uid_real, target_uid, key, iv))
+                                inv_count += 1
+                            except:
+                                pass
 
                             for _ in range(3):
                                 try:
