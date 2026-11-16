@@ -15,9 +15,7 @@ except ImportError:
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-
 LANGS = ["en", "bn"]
-
 
 def random_badge():
     badge_list = [
@@ -28,11 +26,9 @@ def random_badge():
     ]
     return random.choice(badge_list)
 
-
 def EnC_AEs(HeX):
     cipher = AES.new(Key, AES.MODE_CBC, Iv)
     return cipher.encrypt(pad(bytes.fromhex(HeX), AES.block_size)).hex()
-
 
 def ArA_CoLor():
     Tp = ["32CD32", "00BFFF", "00FA9A", "90EE90", "FF4500", "FF6347", "FF69B4",
@@ -41,11 +37,9 @@ def ArA_CoLor():
           "9370DB", "C71585", "FF8C00", "FFA07A"]
     return random.choice(Tp)
 
-
 def DEc_AEs(HeX):
     cipher = AES.new(Key, AES.MODE_CBC, Iv)
     return unpad(cipher.decrypt(bytes.fromhex(HeX)), AES.block_size).hex()
-
 
 def xBunnEr():
     avatar_list = [
@@ -57,22 +51,26 @@ def xBunnEr():
     ]
     return int(random.choice(avatar_list))
 
-
 def EnC_PacKeT(HeX, K, V):
     return AES.new(K, AES.MODE_CBC, V).encrypt(pad(bytes.fromhex(HeX), 16)).hex()
-
 
 def DEc_PacKeT(HeX, K, V):
     return unpad(AES.new(K, AES.MODE_CBC, V).decrypt(bytes.fromhex(HeX)), 16).hex()
 
-
 def EnC_Uid(H, Tp):
-    e, H = [], int(H)
-    while H:
-        e.append((H & 0x7F) | (0x80 if H > 0x7F else 0))
-        H >>= 7
-    return bytes(e).hex() if Tp == 'Uid' else None
-
+    try:
+        H = int(H)
+        if H < 0:
+            raise ValueError("UID cannot be negative")
+        if H == 0:
+            return "00" if Tp == 'Uid' else None
+        e = []
+        while H:
+            e.append((H & 0x7F) | (0x80 if H > 0x7F else 0))
+            H >>= 7
+        return bytes(e).hex() if Tp == 'Uid' else None
+    except (ValueError, TypeError):
+        return None
 
 def EnC_Vr(N):
     N = int(N)
@@ -89,13 +87,11 @@ def EnC_Vr(N):
             break
     return bytes(H)
 
-
 def CrEaTe_VarianT(field_number, value):
     field_number = int(field_number)
     value = int(value)
     field_header = (field_number << 3) | 0
     return EnC_Vr(field_header) + EnC_Vr(value)
-
 
 def DEc_Uid(H):
     n = s = 0
@@ -106,13 +102,11 @@ def DEc_Uid(H):
         s += 7
     return n
 
-
 def CrEaTe_LenGTh(field_number, value):
     field_number = int(field_number)
     field_header = (field_number << 3) | 2
     encoded_value = value.encode() if isinstance(value, str) else value
     return EnC_Vr(field_header) + EnC_Vr(len(encoded_value)) + encoded_value
-
 
 def CrEaTe_ProTo(fields):
     packet = bytearray()
@@ -143,7 +137,6 @@ def CrEaTe_ProTo(fields):
             packet.extend(CrEaTe_LenGTh(field, value))
     return packet
 
-
 def DecodE_HeX(H):
     R = hex(H)
     F = str(R)[2:]
@@ -152,7 +145,6 @@ def DecodE_HeX(H):
         return F
     else:
         return F
-
 
 def Fix_PackEt(parsed_results):
     result_dict = {}
@@ -167,9 +159,14 @@ def Fix_PackEt(parsed_results):
             field_data['data'] = result.data
         elif result.wire_type == 'length_delimited':
             field_data["data"] = Fix_PackEt(result.data.results)
-        result_dict[result.field] = field_data
+        
+        if result.field in result_dict:
+            if not isinstance(result_dict[result.field], list):
+                result_dict[result.field] = [result_dict[result.field]]
+            result_dict[result.field].append(field_data)
+        else:
+            result_dict[result.field] = field_data
     return result_dict
-
 
 def DeCode_PackEt(input_text):
     try:
@@ -182,12 +179,10 @@ def DeCode_PackEt(input_text):
         print(f"error {e}  xC4.py:143 - CDX.py:138")
         return None
 
-
 Key, Iv = (
     bytes([89, 103, 38, 116, 99, 37, 68, 69, 117, 104, 54, 37, 90, 99, 94, 56]),
     bytes([54, 111, 121, 90, 68, 114, 50, 50, 69, 51, 121, 99, 104, 106, 77, 37])
 )
-
 
 def Ua():
     versions = [
@@ -210,26 +205,21 @@ def Ua():
     country = random.choice(countries)
     return f"GarenaMSDK/{version}({model};Android {android};{lang};{country};)"
 
-
 def random_channel():
     channel = random.choice(['en', 'bn'])
     return channel
-
 
 def GLobaL(T, K, V):
     fields = {1: 3, 2: {2: 5, 3: "en"}}
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '1215', K, V)
 
-
 def ChaT_sQ(T, N, U, sQ, K, V):
     fields = {1: N, 2: {1: int(U), 3: "en", 4: str(sQ)}}
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '1215', K, V)
 
-
 def ReFLeSH_Yr():
     fields = {4: 264304360}
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', Key, Iv)
-
 
 def LeVe_C(cid, K, V):
     fields = {}
@@ -238,7 +228,6 @@ def LeVe_C(cid, K, V):
     fields[2][1] = int(cid)
     fields[2][2] = 5
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '1201', K, V)
-
 
 def Send_GhosTs(Uid, Nm, sQ, K, V, lang=None):
     if lang is None:
@@ -251,18 +240,15 @@ def Send_GhosTs(Uid, Nm, sQ, K, V, lang=None):
     }
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
 
-
 def Send_InV(N, U, K, V):
     fields = {1: 2, 2: {1: int(U), 2: "BD", 4: N}}
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
-
 
 RANK_LMT = [
     301, 302, 303, 304, 305, 306, 307, 308, 309, 310,
     311, 312, 313, 314, 315, 316, 317, 318, 319, 320,
     321, 322, 323, 324, 325, 326, 327, 328, 329, 330
 ]
-
 
 def Join_Sq(K, V, lang="en"):
     fields = {
@@ -307,7 +293,6 @@ def Join_Sq(K, V, lang="en"):
     }
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
 
-
 def RefLeSh(K, V, lang="en"):
     fields = {
         1: 67,
@@ -315,25 +300,25 @@ def RefLeSh(K, V, lang="en"):
     }
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
 
-
 def trydecxAlInAs(pack):
     try:
-        r = pack['5']['data']['3']['data']['31']['data']
-    except KeyError:
-        r = pack['5']['data']['31']['data']
-    except:
-        return None
-    return r
-
+        if '5' in pack and 'data' in pack['5']:
+            if '3' in pack['5']['data'] and 'data' in pack['5']['data']['3']:
+                if '31' in pack['5']['data']['3']['data']:
+                    return pack['5']['data']['3']['data']['31']['data']
+            if '31' in pack['5']['data']:
+                return pack['5']['data']['31']['data']
+    except Exception:
+        pass
+    return None
 
 def xAlInAs_Chat(uid, code, K, I, lang="en"):
     fields = {
         1: 3,
-        2: {1: uid, 3: lang, 4\: str(code)}
+        2: {1: uid, 3: lang, 4: str(code)}
     }
-    xAlInAs_fields = str(CfrEaTe_ProTo(fields).\uhex())
-    return GeneRaTePk000(str(xAlInAs_fields), '1215', K, I)
-
+    xAlInAs_fields = str(CrEaTe_ProTo(fields).hex())
+    return GeneRaTePk(str(xAlInAs_fields), '1215', K, I)
 
 def xAlInAs_quitcaht(uid, K, I, lang="en"):
     fields = {
@@ -342,7 +327,6 @@ def xAlInAs_quitcaht(uid, K, I, lang="en"):
     }
     xAlInAs_fields = str(CrEaTe_ProTo(fields).hex())
     return GeneRaTePk(str(xAlInAs_fields), '1215', K, I)
-
 
 def xAlInAs_SendInv(bot_uid, uid, K, V):
     fields = {
@@ -359,14 +343,11 @@ def xAlInAs_SendInv(bot_uid, uid, K, V):
     }
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
 
-
 def xAlInAs_Msg(msg, owner, bot, K, I, lang="en", squad_code=None):
     """Send chat message. If squad_code provided, sends to Team Chat."""
     bot_id = int(bot) if str(bot).isdigit() else bot
     owner_id = int(owner) if str(owner).isdigit() else owner
 
-    # If squad_code provided → Team Chat (channel = squad_code)
-    # Otherwise → Direct/Global (channel = "ALINASPaCKeT")
     chat_channel = str(squad_code) if squad_code else "ALINASPaCKeT"
 
     fields = {
@@ -388,7 +369,7 @@ def xAlInAs_Msg(msg, owner, bot, K, I, lang="en", squad_code=None):
                 18: {
                     1: bot_id,
                     3: 1,
-                    4: "\u0010\u0015\b\n\u000b\u0015f\u0011\u0004\u0007\u0002\u0003\r\u000e\u0012\u0001\u0005\u0006"
+                    4: "\u0010\u0015\b\n\u000b\u0015\f\u000f\u0011\u0004\u0007\u0002\u0003\r\u000e\u0012\u0001\u0005\u0006"
                 }
             },
             10: lang,
@@ -400,7 +381,6 @@ def xAlInAs_Msg(msg, owner, bot, K, I, lang="en", squad_code=None):
     Pk = CrEaTe_ProTo(fields).hex()
     Pk = "080112" + EnC_Uid(len(Pk) // 2, Tp='Uid') + Pk
     return GeneRaTePk(Pk, '1201', K, I)
-
 
 def xSendMsgRM(bot, roomid, msg, K, I, lang="en"):
     fields = {
@@ -433,11 +413,9 @@ def xSendMsgRM(bot, roomid, msg, K, I, lang="en"):
     Pk = "080112" + EnC_Uid(len(Pk) // 2, Tp='Uid') + Pk
     return GeneRaTePk(Pk, '1201', K, I)
 
-
 def ExiT(K, V):
     fields = {1: 7, 2: {1: int(0)}}
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
-
 
 def reflesh(uid, K, V):
     fields = {
@@ -451,43 +429,34 @@ def reflesh(uid, K, V):
     }
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
 
-
 def dance(teamcode, uid, K, V):
     fields = {1: 21, 2: {1: uid, 2: 909000037, 5: {1: uid, 3: 909000037}}}
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0515', K, V)
-
 
 def GeT_Time(timestamp):
     last_login = datetime.fromtimestamp(timestamp)
     now = datetime.now()
     diff = now - last_login
+    days = diff.days
     h, rem = divmod(diff.seconds, 3600)
     m, s = divmod(rem, 60)
-    return h, m, s
-
+    return days, h, m, s
 
 def send_keep_alive(K, V):
     fields = {1: 99, 2: {1: int(time.time()), 2: 1}}
     packet_hex = str(CrEaTe_ProTo(fields).hex())
     return GeneRaTePk(packet_hex, '0519', K, V)
 
-
-# ═════════════════════════════════════════════════════════════
-#  AUTO-RESTART FUNCTIONS — DISABLED
-# ═════════════════════════════════════════════════════════════
 def ResTarTinG():
     print('\n[Auto-Restart DISABLED] ResTarTinG() called — ignored')
     return
-
 
 def AuTo_ResTartinG():
     print('\n[Auto-Restart DISABLED] AuTo_ResTartinG() called — ignored')
     return
 
-
 def xMsGFixinG(n):
     return '🗿'.join(str(n)[i:i + 1] for i in range(0, len(str(n)), 1))
-
 
 def LogOuT(A):
     R = requests.Session().get(
@@ -496,9 +465,12 @@ def LogOuT(A):
     print('LoGOuT =>  xC4.py:439 - CDX.py:424', R.text)
     return R.status_code == 200 and '0' in R.text
 
-
 def GeneRaTePk(Pk, N, K, V):
-    PkEnc = EnC_PacKeT(Pk, K, V)
+    try:
+        PkEnc = EnC_PacKeT(Pk, K, V)
+    except Exception as e:
+        raise ValueError(f"Error encrypting packet: {e}")
+    
     _ = DecodE_HeX(int(len(PkEnc) // 2))
     if len(_) == 2:
         HeadEr = N + "000000"
@@ -508,8 +480,14 @@ def GeneRaTePk(Pk, N, K, V):
         HeadEr = N + "0000"
     elif len(_) == 5:
         HeadEr = N + "000"
+    elif len(_) == 6:
+        HeadEr = N + "00"
+    elif len(_) == 7:
+        HeadEr = N + "0"
+    else:
+        raise ValueError(f"Invalid packet length: {len(_)}")
+    
     return bytes.fromhex(HeadEr + _ + PkEnc)
-
 
 def send_msg_all_langs(sock, msg, owner, bot, key, iv, squad_code=None):
     sent = 0
@@ -518,10 +496,9 @@ def send_msg_all_langs(sock, msg, owner, bot, key, iv, squad_code=None):
             pkt = xAlInAs_Msg(msg, owner, bot, key, iv, lang=lang, squad_code=squad_code)
             sock.sendall(pkt)
             sent += 1
-        except:
+        except Exception:
             pass
     return sent
-
 
 def send_ghost_all_langs(sock, target_uid, nm, squad_code, key, iv):
     sent = 0
@@ -530,6 +507,6 @@ def send_ghost_all_langs(sock, target_uid, nm, squad_code, key, iv):
             pkt = Send_GhosTs(target_uid, nm, squad_code, key, iv, lang=lang)
             sock.sendall(pkt)
             sent += 1
-        except:
+        except Exception:
             pass
     return sent
