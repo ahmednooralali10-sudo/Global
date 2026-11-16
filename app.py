@@ -1678,7 +1678,7 @@ class xAlInAsClient:
                                 deadline = time.time() + JOIN_TIMEOUT
                                 last_send = 1
                                 while time.time() < deadline:
-                                    if RF or not self)
+                                    if RF or not self.running:
 .running:
                                         break
                                     if time.time()                                - last_send > JOIN_REFRESH:
