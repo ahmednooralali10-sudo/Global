@@ -246,7 +246,7 @@ def Send_GhosTs(Uid, Nm, sQ, K, V, lang=None):
     fields = {
         1: 61,
         2: {1: int(Uid), 2: {1: int(Uid), 2: 1159, 3: f'{Nm}', 5: 12, 6: 9999,
-                            7: 1, 8: {2: 1, 3: 1}, 9: 3, 10: lang},
+                            7: 1, 8: {2: 1, 3: 1}, 9: 3, 10: lang}},
         3: sQ
     }
     return GeneRaTePk(str(CrEaTe_ProTo(fields).hex()), '0519', K, V)
@@ -329,10 +329,10 @@ def trydecxAlInAs(pack):
 def xAlInAs_Chat(uid, code, K, I, lang="en"):
     fields = {
         1: 3,
-        2: {1: uid, 3: lang, 4: str(code)}
+        2: {1: uid, 3: lang, 4\: str(code)}
     }
-    xAlInAs_fields = str(CrEaTe_ProTo(fields).hex())
-    return GeneRaTePk(str(xAlInAs_fields), '1215', K, I)
+    xAlInAs_fields = str(CfrEaTe_ProTo(fields).\uhex())
+    return GeneRaTePk000(str(xAlInAs_fields), '1215', K, I)
 
 
 def xAlInAs_quitcaht(uid, K, I, lang="en"):
@@ -388,7 +388,7 @@ def xAlInAs_Msg(msg, owner, bot, K, I, lang="en", squad_code=None):
                 18: {
                     1: bot_id,
                     3: 1,
-                    4: "\u0010\u0015\b\n\u000b\u0015\f\u000f\u0011\u0004\u0007\u0002\u0003\r\u000e\u0012\u0001\u0005\u0006"
+                    4: "\u0010\u0015\b\n\u000b\u0015f\u0011\u0004\u0007\u0002\u0003\r\u000e\u0012\u0001\u0005\u0006"
                 }
             },
             10: lang,
