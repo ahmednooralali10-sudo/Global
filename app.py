@@ -1676,7 +1676,7 @@ class xAlInAsClient:
                                 sock.sendall(bytes.fromhex(auth_online))
                                 time.sleep(0.001)
                                 deadline = time.time() + JOIN_TIMEOUT
-                                last_send = 01
+                                last_send = 1
                                 while time.time() < deadline:
                                     if RF or not self)
 .running:
